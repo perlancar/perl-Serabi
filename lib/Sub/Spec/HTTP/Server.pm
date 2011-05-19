@@ -180,6 +180,14 @@ Number of requests each child will serve until it exists. Default is 1000.
 
 has max_requests_per_child => (is => 'rw', default=>sub{1000});
 
+=head2 module_prefix
+
+Prefix for module. Default is none. Affects get_sub_name().
+
+=cut
+
+has module_prefix => (is => 'rw');
+
 =head2 req
 
 The request object, will be set at the start of each request (before
@@ -579,7 +587,8 @@ sub parse_http_request {
 Parse sub's fully qualified name from HTTP request object. Result should be put
 in $server->req->{sub_module} and $server->req->{sub_name}.
 
-The default implementation parses URI using this syntax:
+You can override this method to provide other URL syntax. The default
+implementation parses URI using this syntax:
 
  /MODULE/SUBMODULE/FUNCTION
 
@@ -597,7 +606,10 @@ For example:
 
  /My/Module/my_func;j
 
-You can override this method to provide other URL syntax.
+If 'module_prefix' attribute is set, it will be prepended to
+$server->req->{sub_module}. For example, if 'module_prefix' is 'Our::Project',
+then with the above URI, the final sub_module will become
+'Our::Project::My::Module'.
 
 =cut
 
@@ -628,7 +640,8 @@ sub get_sub_name {
             400, "Invalid module, please use alphanums only, e.g. My/Module"]);
         die;
     }
-    $req->{sub_module} = $module;
+    $req->{sub_module} = $self->module_prefix ?
+        $self->module_prefix.'::'.$module : $module;
 
     unless ($sub =~ /\A\w+(?:::\w+)*\z/) {
         $self->resp([
