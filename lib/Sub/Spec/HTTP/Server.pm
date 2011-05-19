@@ -993,7 +993,7 @@ sub access_log {
     $args_s = substr($args_s, 0, $self->access_log_max_args_len)
         if $args_partial;
 
-    my $resp_s = $json->encode($self->res // "");
+    my $resp_s = $json->encode($self->resp // "");
     my $resp_len = length($resp_s);
     my $resp_partial = $resp_len > $self->access_log_max_resp_len;
     $resp_s = substr($resp_s, 0, $self->access_log_max_resp_len)
