@@ -480,7 +480,7 @@ sub handle_request {
             unless $eval_err =~ /^Died at .+ line \d+\.$/; # deliberate die
         $self->resp([500, "Died when processing request: $eval_err"]);
     }
-    $self->resp([500, "BUG: response not set"]) if !$self->res;
+    $self->resp([500, "BUG: response not set"]) if !$self->resp;
 
     eval { $self->send_http_response() };
     $eval_err = $@;
