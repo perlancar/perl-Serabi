@@ -994,7 +994,7 @@ sub access_log {
 
     my $fmt = "[%s] [%s] [user %s] ".
         "[mod %s] [sub %s] [args %s %s] ".
-            "[resp %s %s] [subt %s] [reqt %s]\n";
+            "[resp %s %s] [subt %s] [reqt %s]%s\n";
     my $from;
     if ($req->{proto} eq 'tcp') {
         $from = $req->{remote_ip} . ":" .
@@ -1029,6 +1029,7 @@ sub access_log {
         sprintf("%.3fms",
                 1000*tv_interval($req->{time_connect},
                                  $req->{time_finish_response})),
+        keys(%{$req->{log_extra}}) ? " ".$json->encode($req->{log_extra}) : "",
     );
 
     if ($self->_daemon->{daemonized}) {
