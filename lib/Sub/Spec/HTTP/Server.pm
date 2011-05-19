@@ -923,11 +923,11 @@ sub send_http_response {
     my $http_resp = HTTP::Response->new;
     $http_resp->header ('Content-Type' => $ct);
     $http_resp->content($output);
-    $resp->code(200);
-    #$resp->message(...);
+    $http_resp->code(200);
+    #$http_resp->message(...);
     # extra headers
-    $resp->header('Content-Length' => length($output));
-    $resp->header('Connection' => 'close');
+    $http_resp->header('Content-Length' => length($output));
+    $http_resp->header('Connection' => 'close');
     # Date?
 
     # send it!
@@ -1003,8 +1003,8 @@ sub access_log {
         $fmt,
         scalar(localtime), $from, $req->{auth_user} // "-",
         $req->{sub_module} // "-", $req->{sub_name} // "-",
-        ($args_partial ? "p" : ""), $args_s,
-        $resp_partial ? "part (".length($resp_s).")" : "", $resp_s,
+        $args_len.($args_partial ? "p" : ""), $args_s,
+        $resp_len.($resp_partial ? "p" : ""), $resp_s,
         (!defined($req->{time_call_start}) ? "-" :
              !defined($req->{time_call_end}) ? "D" :
                  sprintf("%.3fms",
