@@ -1,8 +1,8 @@
 package SHARYANTO::YAML::Any;
-BEGIN {
-  $SHARYANTO::YAML::Any::VERSION = '0.72';
-}
-# ABSTRACT: SHARYANTO::YAML::Any - Pick a YAML implementation and use it.
+# Pick a YAML implementation and use it.
+
+# NOTE: temporary namespace, will eventually be refactored, tidied up, and sent
+# to a more proper namespace.
 
 use 5.005003;
 use strict;
