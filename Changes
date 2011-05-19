@@ -1,5 +1,16 @@
 Revision history for Sub::Spec::HTTP::Server
 
+0.02     2011-05-20
+
+         [BUG FIXES]
+
+         - before_prefork() didn't get called.
+
+         - (build) Add missing dep: HTTP::Request::AsCGI
+
+         - Lots of other small fixes in code & POD.
+
+
 0.01     2011-05-19
 
          - First release.
