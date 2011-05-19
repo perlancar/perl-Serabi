@@ -403,6 +403,7 @@ sub _after_init {
     }
 
     $self->_server_socks(\@server_socks);
+    $self->before_prefork();
 }
 
 =head2 $server->handle_request()
