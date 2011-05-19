@@ -478,7 +478,8 @@ sub handle_request {
     if ($eval_err) {
         $log->debug("Child died: $eval_err")
             unless $eval_err =~ /^Died at .+ line \d+\.$/; # deliberate die
-        $self->resp([500, "Died when processing request: $eval_err"]);
+        $self->resp([500, "Died when processing request: $eval_err"])
+            unless $self->resp;
     }
     $self->resp([500, "BUG: response not set"]) if !$self->resp;
 
