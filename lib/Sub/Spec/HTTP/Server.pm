@@ -606,21 +606,36 @@ sub get_sub_name {
     my $http_req = $req->{http_req};
     $log->trace("request URI = ".$http_req->uri);
 
-    my ($module, $sub, $opts) =
-        $http_req->uri =~ m!^
-                       /(\w+(?:/\w+)*)
-                       /(\w+)(?:;([^?]*))?(?:\?|\z)!x;
-    unless ($module) {
+    my $uri = $http_req->uri;
+    unless ($uri =~ m!\A/+v1
+                      /+([^/]+(?:/+[^/]+)*) # module
+                      /+([^/]+)     # func
+                      (?:;([^?]*))? # opts
+                      (?:\?|\z)
+                     !x) {
         $self->resp([
             400, "Invalid request URI, please use the syntax ".
-                "/MODULE/SUBMODULE/FUNCTION?PARAM=VALUE..."]);
+                "/v1/MODULE/SUBMODULE/FUNCTION?PARAM=VALUE..."]);
         $req->{log_extra}{uri} = "" . $http_req->uri;
         die;
     }
+    my ($module, $sub, $opts) = ($1, $2, $3);
 
-    $module =~ s!/!::!g;
+    $module =~ s!/+!::!g;
+    unless ($module =~ /\A\w+(?:::\w+)*\z/) {
+        $self->resp([
+            400, "Invalid module, please use alphanums only, e.g. My/Module"]);
+        die;
+    }
     $req->{sub_module} = $module;
+
+    unless ($sub =~ /\A\w+(?:::\w+)*\z/) {
+        $self->resp([
+            400, "Invalid sub, please use alphanums only, e.g. my_func"]);
+        die;
+    }
     $req->{sub_name}   = $sub;
+
     $req->{opts}       = $opts;
 
     # parse opts
