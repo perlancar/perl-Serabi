@@ -815,12 +815,13 @@ sub get_sub_spec {
     my ($self) = @_;
     my $req = $self->req;
 
+    my $module = $req->{sub_module};
     my $func = $req->{sub_name};
-    my $fqspec = $req->{sub_module} . "::SPEC";
+    my $fqspec = $module . "::SPEC";
     no strict 'refs';
     my $fspec = ${$fqspec}{$func};
     unless ($fspec) {
-        $self->resp([500, "Can't find spec for this sub"]);
+        $self->resp([500, "Can't find spec for module $module sub $func"]);
         die;
     }
     $req->{sub_spec} = $fspec;
