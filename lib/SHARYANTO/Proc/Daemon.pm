@@ -1,6 +1,9 @@
 package SHARYANTO::Proc::Daemon;
 # ABSTRACT: Create preforking, autoreloading daemons
 
+# NOTE: temporary namespace, will eventually be refactored, tidied up, and sent
+# to a more proper namespace.
+
 =for Pod::Coverage .
 
 =cut
