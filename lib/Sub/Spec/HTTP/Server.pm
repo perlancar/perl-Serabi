@@ -677,7 +677,7 @@ sub get_sub_name {
             $http_req->header('Accept' => 'application/vnd.php.serialized');
         }
         if ($opts =~ /[h?]/) {
-            $http_req->{help}++;
+            $req->{help}++;
             $http_req->header('Content-Type' => 'application/x-spanel-noargs');
         }
 
