@@ -840,7 +840,7 @@ sub get_sub_spec {
     $req->{sub_spec} = $fspec;
 }
 
-=head1 $server->auth()
+=head2 $server->auth()
 
 Authenticate client. Override this if needed. The default implementation does
 nothing. Authenticated client should be put in $server->req->{auth_user}.
@@ -849,7 +849,7 @@ nothing. Authenticated client should be put in $server->req->{auth_user}.
 
 sub auth {}
 
-=head1 $server->authz()
+=head2 $server->authz()
 
 Authorize client. Override this if needed. The default implementation does
 nothing.
@@ -858,7 +858,7 @@ nothing.
 
 sub authz {}
 
-=head1 $server->call_sub()
+=head2 $server->call_sub()
 
 Call function specified in $server->req->{module} and $server->req->{sub}) using
 arguments specified in $server->req->{args}. Set $server->resp() with the return
