@@ -1,5 +1,9 @@
 package SHARYANTO::Proc::Daemon;
 
+=for Pod::Coverage .
+
+=cut
+
 # routines for a preforking, autoreloading daemon
 
 use 5.010;
