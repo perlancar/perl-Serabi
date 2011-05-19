@@ -1015,7 +1015,7 @@ sub access_log {
                                  $req->{time_finish_response})),
     );
 
-    if ($self->daemonize) {
+    if ($self->_daemon->{daemonized}) {
         #warn "Printing to access log $daemon->{_access_log}: $logline";
         # XXX rotating?
         syswrite($self->_daemon->{_access_log}, $logline);
