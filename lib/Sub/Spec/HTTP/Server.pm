@@ -309,7 +309,7 @@ sub _main_loop {
     }
 }
 
-=head1 $server->before_prefork()
+=head2 $server->before_prefork()
 
 Override this hook to do stuffs before preforking. For example, you can preload
 all modules. This is more efficient than each children loading modules
