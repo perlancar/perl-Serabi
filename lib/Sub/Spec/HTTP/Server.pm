@@ -740,7 +740,7 @@ sub get_sub_args {
         }
     } elsif ($ct eq 'application/json') {
         $log->trace('Request is JSON');
-        eval { $args = $json->decode($req->content) };
+        eval { $args = $json->decode($http_req->content) };
         if ($@) {
             $self->resp([
                 400, "Invalid JSON in request body: $@"]);
