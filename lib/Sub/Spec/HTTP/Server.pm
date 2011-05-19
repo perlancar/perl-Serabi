@@ -985,7 +985,7 @@ Log request. The default implementation logs like this (all in one line):
  [args 14 {"name":"val"}] [resp 12 [200,"OK",1]] [subt 2.123ms] [reqt 5.947ms]
 
 where subt is time spent in the subroutine, and reqt is time spent for the whole
-request (from connect until response is sent).
+request (from connect until response is sent, which includes reqt).
 
 =cut
 
