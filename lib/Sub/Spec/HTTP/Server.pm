@@ -622,7 +622,7 @@ sub get_sub_name {
     my $uri = $http_req->uri;
     unless ($uri =~ m!\A/+v1
                       /+([^/]+(?:/+[^/]+)*) # module
-                      /+([^/]+)     # func
+                      /+([^/]+?)    # func
                       (?:;([^?]*))? # opts
                       (?:\?|\z)
                      !x) {
