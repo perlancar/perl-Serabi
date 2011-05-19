@@ -629,7 +629,6 @@ sub get_sub_name {
         $self->resp([
             400, "Invalid request URI, please use the syntax ".
                 "/v1/MODULE/SUBMODULE/FUNCTION?PARAM=VALUE..."]);
-        $req->{log_extra}{uri} = "" . $http_req->uri;
         die;
     }
     my ($module, $sub, $opts) = ($1, $2, $3);
@@ -994,7 +993,8 @@ sub after_send_http_response {}
 
 Log request. The default implementation logs like this (all in one line):
 
- [Fri Feb 18 22:05:38 2011] [127.0.0.1:949] [-] [mod MyModule] [sub my_func]
+ [Fri Feb 18 22:05:38 2011] "GET /v1/MyModule/my_func;j?arg1=1&arg2=2"
+ [127.0.0.1:949] [-] [mod MyModule] [sub my_func]
  [args 14 {"name":"val"}] [resp 12 [200,"OK",1]] [subt 2.123ms] [reqt 5.947ms]
 
 where subt is time spent in the subroutine, and reqt is time spent for the whole
@@ -1005,11 +1005,20 @@ request (from connect until response is sent, which includes reqt).
 sub access_log {
     my ($self) = @_;
     my $req = $self->req;
+    my $http_req = $req->{http_req};
     my $resp = $self->resp;
 
-    my $fmt = "[%s] [%s] [user %s] ".
-        "[mod %s] [sub %s] [args %s %s] ".
-            "[resp %s %s] [subt %s] [reqt %s]%s\n";
+    my $fmt = join(
+        "",
+        "[%s] ", # time
+        "[%s] ", # from
+        "\"%s %s\" ", # HTTP method & URI
+        "[user %s] ",
+        "[mod %s] [sub %s] [args %s %s] ",
+        "[resp %s %s] [subt %s] [reqt %s]",
+        "%s", # extra info
+        "\n"
+    );
     my $from;
     if ($req->{proto} eq 'tcp') {
         $from = $req->{remote_ip} . ":" .
@@ -1032,7 +1041,10 @@ sub access_log {
 
     my $logline = sprintf(
         $fmt,
-        scalar(localtime), $from, $req->{auth_user} // "-",
+        scalar(localtime $req->{time_connect}[0]),
+        $from,
+        $http_req->method, $http_req->uri,
+        $req->{auth_user} // "-",
         $req->{sub_module} // "-", $req->{sub_name} // "-",
         $args_len.($args_partial ? "p" : ""), $args_s,
         $resp_len.($resp_partial ? "p" : ""), $resp_s,
