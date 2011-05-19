@@ -371,7 +371,7 @@ sub _after_init {
         my %args = (LocalPort => $port, Reuse => 1);
         $args{LocalHost} = $host if $host;
         my $sock = HTTP::Daemon->new(%args);
-        die sprintf("Unable to bind to TCP socket %s:%d", $port, $host//"*")
+        die sprintf("Unable to bind to TCP socket %s:%d", $host//"*", $port)
             unless $sock;
         push @server_socks, $sock;
     }
@@ -380,7 +380,7 @@ sub _after_init {
         my $port = $self->https_port;
         my $host = $self->https_bind_host;
         $log->infof("Binding to TCP socket %s:%d (https) ...",
-                   $host // "*", $port);
+                   $host//"*", $port);
         my %args = (LocalPort => $port, Reuse => 1);
         $args{LocalHost} = $host if $host;
         # currently commented out, hangs with larger POST
@@ -397,7 +397,7 @@ sub _after_init {
 
         die sprintf("Unable to bind to TCP socket %s:%d, common cause include ".
                         "port taken or missing server key/cert file",
-                    $host // "*", $port)
+                    $host//"*", $port)
             unless $sock;
         push @server_socks, $sock;
     }
