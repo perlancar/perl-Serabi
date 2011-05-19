@@ -201,7 +201,7 @@ has resp => (is => 'rw');
 has _daemon => (is => 'rw');
 
 # store server sockets
-has _server_sockets => (is => 'rw');
+has _server_socks => (is => 'rw');
 
 
 my $json = JSON->new->allow_nonref;
@@ -408,11 +408,11 @@ die to exit early and directly go to access_log().
 
 =item * parse_http_request()
 
-=item * auth()
-
 =item * get_sub_name()
 
 =item * get_sub_args()
+
+=item * auth()
 
 =item * get_sub_spec()
 
@@ -441,9 +441,9 @@ sub handle_request {
         $self->_set_req_vars();
         $self->before_parse_http_request();
         $self->parse_http_request();
-        $self->auth();
         $self->get_sub_name();
         $self->get_sub_args();
+        $self->auth();
         $self->get_sub_spec();
         $self->authz();
         if ($req->{chunked}) {
