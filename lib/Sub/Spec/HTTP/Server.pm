@@ -877,6 +877,7 @@ sub call_sub {
     my $spec   = $req->{sub_spec};
 
     if ($req->{help}) {
+        $req->{access_log_mute_resp}++;
         $self->resp([200, "OK", Sub::Spec::CmdLine::gen_usage($spec)]);
         return;
     }
@@ -1034,11 +1035,18 @@ sub access_log {
     $args_s = substr($args_s, 0, $self->access_log_max_args_len)
         if $args_partial;
 
-    my $resp_s = $json->encode($self->resp // "");
-    my $resp_len = length($resp_s);
-    my $resp_partial = $resp_len > $self->access_log_max_resp_len;
-    $resp_s = substr($resp_s, 0, $self->access_log_max_resp_len)
-        if $resp_partial;
+    my ($resp_s, $resp_len, $resp_partial);
+    if ($req->{access_log_mute_resp}) {
+        $resp_s = "*";
+        $resp_partial = 0;
+        $resp_len = "*";
+    } else {
+        $resp_s = $json->encode($self->resp // "");
+        $resp_len = length($resp_s);
+        $resp_partial = $resp_len > $self->access_log_max_resp_len;
+        $resp_s = substr($resp_s, 0, $self->access_log_max_resp_len)
+            if $resp_partial;
+    }
 
     my $logline = sprintf(
         $fmt,
