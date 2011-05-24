@@ -7,8 +7,6 @@ use warnings;
 use Log::Any '$log';
 
 use CGI::Lite;
-use Data::Dump::OneLine qw(dump_one_line);
-use Data::Dump::Partial qw(dump_partial);
 use HTTP::Daemon;
 use HTTP::Daemon::SSL;
 use HTTP::Parser;
