@@ -472,6 +472,8 @@ sub handle_request {
                     $req->{sock}->print(
                         sprintf("%02x\r\n", length($msg)),
                         $msg, "\r\n");
+                    # this seems needed?
+                    $req->{sock}->flush();
                     # XXX also log to the previous adapter
                 },
             );
