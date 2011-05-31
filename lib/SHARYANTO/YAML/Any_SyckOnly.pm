@@ -18,3 +18,6 @@ use YAML::Syck;
 $YAML::Syck::ImplicitTyping = 1;
 
 1;
+__END__
+
+=for Pod::Coverage .*

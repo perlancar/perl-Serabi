@@ -196,6 +196,8 @@ and the following subroutines are exportable by request:
 
 YAML::Any provides the following class methods.
 
+=for Pod::Coverage .*
+
 =over
 
 =item YAML::Any->order;

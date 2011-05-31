@@ -618,9 +618,21 @@ sub get_sub_name {
     my ($self) = @_;
     my $req = $self->req;
     my $http_req = $req->{http_req};
-    $log->trace("request URI = ".$http_req->uri);
+
+    if ($http_req->header('X-SS-Log-Level')) {
+        $req->{log_level} = $http_req->header('X-SS-Log-Level');
+        $log->trace("Turning on chunked transfer ...");
+        $req->{chunked}++;
+    }
+    if ($http_req->header('X-SS-Mark-Chunk')) {
+        $log->trace("Turning on mark prefix on each chunk ...");
+        $req->{mark_chunk}++;
+        $log->trace("Turning on chunked transfer ...");
+        $req->{chunked}++;
+    }
 
     my $uri = $http_req->uri;
+    $log->trace("request URI = $uri");
     unless ($uri =~ m!\A/+v1
                       /+([^/]+(?:/+[^/]+)*) # module
                       /+([^/]+?)    # func
@@ -693,14 +705,6 @@ sub get_sub_name {
                 $l == 1 ? 'fatal' : '';
             $http_req->header('X-SS-Log-Level' => $level) if $level;
         }
-    }
-    if ($http_req->header('X-SS-Log-Level')) {
-        $req->{log_level} = $http_req->header('X-SS-Log-Level');
-        $req->{chunked}++;
-    }
-    if ($http_req->header('X-SS-Mark-Chunk')) {
-        $req->{mark_chunk}++;
-        $req->{chunked}++;
     }
     $log->trace("parse request URI: module=$module, sub=$sub, opts=$opts");
 }
