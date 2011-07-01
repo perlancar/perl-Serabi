@@ -65,6 +65,15 @@ Location of PID file. Default is /var/run/<name>.pid.
 
 has pid_path => (is => 'rw');
 
+=head2 scoreboard_path => STR
+
+Location of scoreboard file (used for communication between parent and child
+processes). Default is /var/run/<name>.scoreboard.
+
+=cut
+
+has scoreboard_path => (is => 'rw');
+
 =head2 error_log_path => STR
 
 Location of error log. Default is /var/log/<name>-error.log. It will be opened
@@ -236,12 +245,16 @@ sub BUILD {
     unless ($self->pid_path) {
         $self->pid_path("/var/run/".$self->name.".pid");
     }
+    unless ($self->scoreboard_path) {
+        $self->scoreboard_path("/var/run/".$self->name.".scoreboard");
+    }
     unless ($self->_daemon) {
         my $daemon = SHARYANTO::Proc::Daemon->new(
             name                    => $self->name,
             error_log_path          => $self->error_log_path,
             access_log_path         => $self->access_log_path,
             pid_path                => $self->pid_path,
+            scoreboard_path         => $self->scoreboard_path,
             daemonize               => $self->daemonize,
             prefork                 => $self->start_servers,
             after_init              => sub { $self->_after_init },
@@ -309,9 +322,11 @@ sub _main_loop {
         my @ready = $sel->can_read();
         for my $s (@ready) {
             my $sock = $s->accept();
+            $self->_daemon->update_scoreboard("R");
             $self->req({sock=>$sock});
             $self->resp(undef);
             $self->handle_request();
+            $self->_daemon->update_scoreboard("_");
         }
     }
 }
@@ -454,6 +469,7 @@ sub handle_request {
         $self->auth();
         $self->get_sub_spec();
         $self->authz();
+        $self->_daemon->update_scoreboard("W");
         if ($req->{chunked}) {
             # if client specified logging, we temporarily divert Log::Any logs
             # to the client via chunked response
