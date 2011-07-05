@@ -315,6 +315,7 @@ sub _main_loop {
     my ($self) = @_;
     $log->info("Child process started (PID $$)");
 
+    my $child_start_time = time();
     my $sel = IO::Select->new(@{ $self->_server_socks });
 
     for (my $i=1; $i<$self->max_requests_per_child; $i++) {
@@ -322,11 +323,16 @@ sub _main_loop {
         my @ready = $sel->can_read();
         for my $s (@ready) {
             my $sock = $s->accept();
-            $self->_daemon->update_scoreboard("R");
+            $self->_daemon->update_scoreboard({
+                child_start_time => $child_start_time,
+                req_start_time => time(),
+                num_reqs => $i,
+                state => "R",
+            });
             $self->req({sock=>$sock});
             $self->resp(undef);
             $self->handle_request();
-            $self->_daemon->update_scoreboard("_");
+            $self->_daemon->update_scoreboard({state => "_"});
         }
     }
 }
@@ -469,7 +475,7 @@ sub handle_request {
         $self->auth();
         $self->get_sub_spec();
         $self->authz();
-        $self->_daemon->update_scoreboard("W");
+        $self->_daemon->update_scoreboard({state => "W"});
         if ($req->{chunked}) {
             # if client specified logging, we temporarily divert Log::Any logs
             # to the client via chunked response
