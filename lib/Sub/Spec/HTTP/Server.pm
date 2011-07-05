@@ -314,8 +314,8 @@ sub is_running {
 sub _main_loop {
     my ($self) = @_;
     $log->info("Child process started (PID $$)");
+    $self->_daemon->update_scoreboard({child_start_time=>time()});
 
-    my $child_start_time = time();
     my $sel = IO::Select->new(@{ $self->_server_socks });
 
     for (my $i=1; $i<$self->max_requests_per_child; $i++) {
@@ -324,7 +324,6 @@ sub _main_loop {
         for my $s (@ready) {
             my $sock = $s->accept();
             $self->_daemon->update_scoreboard({
-                child_start_time => $child_start_time,
                 req_start_time => time(),
                 num_reqs => $i,
                 state => "R",
