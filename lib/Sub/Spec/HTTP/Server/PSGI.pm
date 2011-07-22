@@ -1,5 +1,5 @@
-package Sub::Spec::HTTP::Server;
-# ABSTRACT: Serve subroutine calls via HTTP/HTTPS
+package Sub::Spec::HTTP::Server::PSGI;
+# ABSTRACT: PSGI application to serve subroutine calls, suitable for remote API
 
 use 5.010;
 use strict;

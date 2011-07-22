@@ -1,4 +1,13 @@
-Revision history for Sub::Spec::HTTP::Server
+Revision history for Sub::Spec::HTTP::Server::PSGI
+
+0.06     2011-07-22*
+
+         [INCOMPATIBLE CHANGES]
+
+         - Web server portion refactored out into separate distribution (Gepok,
+           PSGI-based). This distribution now renamed to
+           Sub-Spec-HTTP-Server-PSGI, becomes a PSGI application.
+
 
 0.05     2011-06-17
 
