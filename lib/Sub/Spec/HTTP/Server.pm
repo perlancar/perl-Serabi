@@ -438,8 +438,6 @@ die to exit early and directly go to access_log().
 
 =item * get_sub_name()
 
-=item * get_sub_args()
-
 =item * auth()
 
 =item * get_sub_spec()
@@ -730,118 +728,7 @@ sub get_sub_name {
     $log->trace("parse request URI: module=$module, sub=$sub, opts=$opts");
 }
 
-=head2 $server->get_sub_args()
-
-Parse sub's args from HTTP request object. Result should be put in
-$server->req->{sub_args}. It should be a hashref.
-
-The default implementation can get args from request body in PHP serialization
-format (if C<Content-Type> HTTP request header is set to
-C<application/vnd.php.serialized>) or JSON (C<application/json>) or YAML
-(C<text/yaml>).
-
-Alternatively, it can get args from URL query parameters. Each query parameter
-corresponds to an argument name. If you add ":j" suffix to query parameter name,
-it means query parameter value is in JSON format. If ":y" suffix, YAML format.
-If ":p", PHP serialization format.
-
-You can override this method to provide other ways to parse arguments from HTTP
-request.
-
-=cut
-
-sub get_sub_args {
-    my ($self) = @_;
-    my $req = $self->req;
-    my $http_req = $req->{http_req};
-
-    my $ct = $http_req->header('Content-Type') // '';
-    my $args;
-    if ($ct eq 'application/vnd.php.serialized') {
-        $log->trace('Request is JSON');
-        eval { $args = PHP::Serialization::unserialize($http_req->content) };
-        if ($@) {
-            $self->resp([
-                400, "Invalid PHP serialized data in request body: $@"]);
-            die;
-        }
-    } elsif ($ct eq 'application/x-spanel-noargs') {
-        $log->trace("Request doesn't have args");
-        $args = {};
-    } elsif ($ct eq 'text/yaml') {
-        $log->trace('Request is YAML');
-        eval { $args = Load($http_req->content) };
-        if ($@) {
-            $self->resp([
-                400, "Invalid YAML in request body: $@"]);
-            die;
-        }
-    } elsif ($ct eq 'application/json') {
-        $log->trace('Request is JSON');
-        eval { $args = $json->decode($http_req->content) };
-        if ($@) {
-            $self->resp([
-                400, "Invalid JSON in request body: $@"]);
-            die;
-        }
-    } else {
-        $log->trace('Request is CGI');
-        # normal GET/POST, check each query parameter for :j, :y, :p decoding
-        my $c    = HTTP::Request::AsCGI->new($http_req)->setup;
-        my $cgi  = CGI::Lite->new;
-        my $form = $cgi->parse_form_data;
-        $args = {};
-
-        while (my ($k, $v) = each %$form) {
-            if ($k =~ /(.+):j$/) {
-                $k = $1;
-                #$log->trace("CGI parameter $k (json)=$v");
-                eval { $v = $json->decode($v) };
-                if ($@) {
-                    $self->resp([
-                        400, "Invalid JSON in query parameter $k: $@"]);
-                    die;
-                }
-                $args->{$k} = $v;
-            } elsif ($k =~ /(.+):y$/) {
-                $k = $1;
-                #$log->trace("CGI parameter $k (yaml)=$v");
-                eval { $v = Load($v) };
-                if ($@) {
-                    $self->resp([
-                        400, "Invalid YAML in query parameter $k: $@"]);
-                    die;
-                }
-                $args->{$k} = $v;
-            } elsif ($k =~ /(.+):p$/) {
-                $k = $1;
-                #$log->trace("CGI parameter $k (php)=$v");
-                eval { $v = PHP::Serialization::unserialize($v) };
-                if ($@) {
-                    $self->resp([
-                        400, "Invalid PHP serialized data ".
-                            "in query parameter $k: $@"]);
-                    die;
-                }
-                $args->{$k} = $v;
-            } else {
-                #$log->trace("CGI parameter $k=$v");
-                $args->{$k} = $v;
-            }
-        }
-    }
-
-    # sanity check on args
-    $args //= {};
-    unless (ref($args) eq 'HASH') {
-        $self->resp([400, "Invalid args, must be a hash"]);
-        die;
-    }
-    #$log->tracef("args = %s", $args);
-    $req->{sub_args} = $args;
-}
-
-=head2 $server->get_sub_args()
+=head2 $server->get_sub_spec()
 
 Get sub's spec. Result should be put in $server->req->{sub_spec}.
 
