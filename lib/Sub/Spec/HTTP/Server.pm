@@ -29,26 +29,15 @@ C<My::API::Module2> as HTTP API functions:
 
 First, write C<app.psgi>:
 
- #!/usr/bin/perl
-
- use 5.010;
- use strict;
- use warnings;
-
+ #!perl
  use Plack::Builder;
- use Sub::Spec::HTTP::Server;
-
- my $sshttps = Sub::Spec::HTTP::Server->new;
- my $app = $sshttps->psgi_app;
 
  builder {
-     enable "SubSpec::RequestParser";
-     enable "SubSpec::Auth";
-     enable "SubSpec::Authz";
-     enable "SubSpec::Response::Usage";
-     enable "SubSpec::Response::Call";
+     enable "SubSpec::ParseRequest";
+     enable "SubSpec::ServeCall";
+     enable "SubSpec::ServeHelp";
+     enable "SubSpec::ServeSpec";
      enable "SubSpec::AccessLog";
-     $app;
  };
 
 Run the app with PSGI server, e.g. Gepok:
@@ -58,7 +47,7 @@ Run the app with PSGI server, e.g. Gepok:
 
 Call your functions over HTTP:
 
- % curl http://localhost:5000/My/API/Module1/mult/2/3
+ % curl http://localhost:5000/My::API::Module1/mult/2/3
  [200,"OK",6]
 
  % curl 'https://localhost:5001/My/API/Module2/array_concat?a1:j=[1]&a2:j=[2]'
@@ -75,12 +64,28 @@ originally PSGI-based.)
 As the case with any PSGI application, you can use any I<PSGI server> to run it
 with. But you might want to consider L<Gepok>, which has built-in HTTPS support.
 
+This PSGI application is broken into modular middlewares which you can compose
+in your app.psgi, including only the ones you need. See each middleware's
+documentation for details (in the Plack::Middleware::SubSpec::* namespace).
+
 This module uses L<Log::Any> for logging.
 
 This module uses L<Moo> for object system.
 
 
 =head1 FAQ
+
+=head2 I just want to expose one module and provide a simpler API URL (e.g. without having to specify module name).
+
+XXX
+
+=head2 I want to limit only certain modules can be requested.
+
+XXX
+
+=head2 I want to automatically reload modules that changed on disk.
+
+XXX
 
 
 =head1 SEE ALSO
