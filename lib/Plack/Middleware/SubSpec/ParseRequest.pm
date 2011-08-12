@@ -6,12 +6,12 @@ use warnings;
 
 use parent qw(Plack::Middleware);
 use Plack::Util::Accessor qw(
-                                preparse_code
+                                before_parse
                                 allow_call_request
                                 allow_help_request
                                 allow_spec_request
                                 parse_args_from_web_form
-                                parse_args_from_document
+                                parse_args_from_body
                                 parse_args_from_path_info
                                 accept_json
                                 accept_yaml
@@ -22,14 +22,11 @@ use Plack::Util::Accessor qw(
                                 allow_logs
                                 per_arg_encoding
                         );
-                                # log level
 
 # VERSION
 
-sub get_sub_name {
-    my ($self) = @_;
-    my $req = $self->req;
-    my $http_req = $req->{http_req};
+sub call {
+    my ($env, $env) = @_;
 
     if ($http_req->header('X-SS-Log-Level')) {
         $req->{log_level} = $http_req->header('X-SS-Log-Level');
@@ -76,35 +73,6 @@ sub get_sub_name {
 
     $req->{opts}       = $opts;
 
-    # parse opts
-    $opts //= "";
-    if (length($opts)) {
-        if ($opts =~ /0/) {
-            $http_req->header('Content-Type' => 'application/x-spanel-noargs');
-        }
-        if ($opts =~ /y/) {
-            $http_req->header('Accept' => 'text/yaml');
-        }
-        if ($opts =~ /t/) {
-            $http_req->header('Accept' => 'text/html');
-        }
-        if ($opts =~ /r/) {
-            $http_req->header('Accept' => 'text/x-spanel-pretty');
-        }
-        if ($opts =~ /R/) {
-            $http_req->header('Accept' => 'text/x-spanel-nopretty');
-        }
-        if ($opts =~ /j/) {
-            $http_req->header('Accept' => 'application/json');
-        }
-        if ($opts =~ /p/) {
-            $http_req->header('Accept' => 'application/vnd.php.serialized');
-        }
-        if ($opts =~ /[h?]/) {
-            $req->{help}++;
-            $http_req->header('Content-Type' => 'application/x-spanel-noargs');
-        }
-
         if ($opts =~ /l:([1-6])(m?)(?::|\z)/) {
             $http_req->header('X-SS-Mark-Chunk' => 1) if $2;
             my $l = $1;
@@ -133,7 +101,7 @@ sub get_sub_name {
     enable "SubSpec::ParseRequest"
         #parse_args_from_path_info => 1,
         #parse_args_from_web_form => 1,
-        #parse_args_from_document => 1,
+        #parse_args_from_body => 1,
         #accept_json => 1,
         #accept_yaml => 1,
         #accept_php => 1,
@@ -185,38 +153,106 @@ number specifies log level: 0 is none, 1 fatal, 2 error, 3 warn, 4 info, 5
 debug, 6 trace]. Alternatively, the string "fatal", "error", etc can be used
 instead.
 
-=item * spec => BOOL (default 0)
+=item * output_format => STR 'yaml'/'json'/'php'/'pretty'/'nopretty'/'html' (default 'json' or 'pretty' or 'html')
 
-1 means client requests the sub spec instead of calling the subroutine.
+Specify preferred output format. The default is 'json', or 'html' if User-Agent
+is detected as a GUI browser, or 'pretty' is User-Agent header is a text browser
+or command-line client (this detection is done by
+L<Plack::Middleware::SubSpec::FormatOutput>).
 
-=item * output_format => STR 'yaml'/'json'/'php'/'pretty-text'/'simple-text'/'pretty-html' (default 'json' or 'pretty-text' or 'pretty-html')
-
-Specify preferred output format. The default is 'json', or 'pretty-html' if
-User-Agent is detected as a GUI browser, or 'pretty-text' is User-Agent header
-is a text browser or command-line client.
-
-'pretty-text' is output formatted by L<Data::Format::Pretty::Console> with
-option interactive=1.
-
-'simple-text' is output formatted by L<Data::Format::Pretty::Console> with
-option interactive=0.
-
-'pretty-html' is output formatted by L<Data::Format::Pretty::HTML>.
+Pretty-printing is done with one of L<Data::Format::Pretty>'s formatter modules.
 
 =back
 
 =back
 
-The next section describes how this middleware parses sub request; it is pretty
-flexible and should accomodate common needs. If your needs is not met, you can
-write your own sub request parser middleware. Just remember the abovementioned
-PSGI environment keys that need to be produced.
+The next section describes how this middleware parses sub request; the default
+behaviour is rather flexible and should accomodate common needs. If your need is
+not met, however, you can write your own sub request parser middleware. Just
+remember the abovementioned PSGI environment keys that need to be produced.
 
 =head2 How sub request is parsed by Plack::Middleware::SubSpec::ParseRequest
 
-XXX
+This middleware can extract module name and sub name from request URI, sub
+arguments from URI/request body, call options from URI/request headers.
 
-=head1 CONFIGURATION
+First it copies C<REQUEST_URI> $env key to C<ss.temp.request_uri> so that
+request URI can be modified without ruining C<REQUEST_URI> for other
+middlewares.
+
+It then checks if C<before_parse> configuration is set. If so, it will call the
+code specified in C<before_parse> (passing $env as argument) to give a chance to
+modify/preprocess C<ss.temp.request_uri> or other data.
+
+After that, it will expect request URI to be in the form of:
+
+ /MODULE/SUBMODULE/FUNCTION?ARG=VAL&ARG2=VAL&...
+
+or if C<module> configuration is set, the form of:
+
+ /FUNCTION/ARG/ARG2/...;SHORT_OPTS?MOREARG=VAL&...
+
+or if C<module> and C<sub> is set, the form of:
+
+ /ARG/ARG2/...;SHORT_OPTS?MOREARG=VAL&...
+
+Otherwise, a 400 response will be returned.
+
+MODULE/SUBMODULE is module name, the slashes will be replaced by "::"'s. For
+example, Foo/Bar will become Foo::Bar in ss.request.module.
+
+ARGS are sub arguments. Arguments will be parsed from request URI if C<module>
+and C<parse_args_from_path_info> is set, or they will be parsed from request
+body (if C<parse_args_from_body> is true), or from GET/POST request variables
+(if C<parse_args_from_web_form> is true).
+
+SHORT_OPTS are a sequence of one or more letters, specifying request options:
+
+=over 4
+
+=item * C<h> (for "help") means setting option C<type> to C<usage>.
+
+=item * C<y> means setting option C<output_format> to C<yaml>.
+
+=item * C<j> means setting option C<output_format> to C<json>.
+
+=item * C<p> means setting option C<output_format> to C<php>.
+
+=item * C<r> means setting option C<output_format> to C<>.
+
+if (length($opts)) {
+        if ($opts =~ /y/) {
+            $http_req->header('Accept' => 'text/yaml');
+        }
+        if ($opts =~ /t/) {
+            $http_req->header('Accept' => 'text/html');
+        }
+        if ($opts =~ /r/) {
+            $http_req->header('Accept' => 'text/x-spanel-pretty');
+        }
+        if ($opts =~ /R/) {
+            $http_req->header('Accept' => 'text/x-spanel-nopretty');
+        }
+        if ($opts =~ /j/) {
+            $http_req->header('Accept' => 'application/json');
+        }
+        if ($opts =~ /p/) {
+            $http_req->header('Accept' => 'application/vnd.php.serialized');
+        }
+        if ($opts =~ /[h?]/) {
+            $req->{help}++;
+            $http_req->header('Content-Type' => 'application/x-spanel-noargs');
+        }
+
+=item * C<
+
+=back
+
+To specify more options, you can use HTTP request headers, X-SS-<option-name>.
+For example, C<X-SS-Log-Level> can be used to set C<log_level> option.
+
+
+=head1 CONFIGURATIONS
 
 =over 4
 
@@ -286,6 +322,29 @@ data.
 Whether we should allow each GET/POST request variable to be encoded, e.g.
 http://foo?arg1:j=%5B1,2,3%5D ({arg1=>[1, 2, 3]}).
 
+=item * before_parse => CODE
+
+If specified, the code will be called with $env as the argument. It can modify
+C<ss.temp.request_uri> in $env, for example if your API URL format is:
+
+ /api/v1/MODULE/FUNC
+
+then you can supply this code in C<before_parse>:
+
+ sub {
+     my $env = shift;
+     return unless $env->{"ss.temp.request_uri"};
+     $env->{"ss.temp.request_uri"} =~ s!^/api/v1/!/!;
+ }
+
+so that ParseRequest can parse module name and sub name from
+C<ss.temp.request_uri>.
+
 =back
+
+
+=head1 SEE ALSO
+
+L<Sub::Spec::HTTP::Client>
 
 =cut
