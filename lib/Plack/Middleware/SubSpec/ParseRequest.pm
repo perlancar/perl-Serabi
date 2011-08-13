@@ -6,7 +6,7 @@ use warnings;
 
 use parent qw(Plack::Middleware);
 use Plack::Util::Accessor qw(
-                                before_parse
+                                uri_pattern
                                 allow_call_request
                                 allow_help_request
                                 allow_spec_request
