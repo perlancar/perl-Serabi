@@ -46,6 +46,7 @@ First, write C<app.psgi>:
              }
          };
      enable "SubSpec::LoadModule";
+     enable "SubSpec::GetSpec";
      enable "SubSpec::ServeCall";
      enable "SubSpec::ServeHelp";
      enable "SubSpec::ServeSpec";
