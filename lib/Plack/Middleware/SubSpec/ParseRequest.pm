@@ -21,72 +21,191 @@ use Plack::Util::Accessor qw(
                                 allow_return_php
                                 allow_logs
                                 per_arg_encoding
+                                after_parse
                         );
+
+use Sub::Spec::GetArgs::Array qw(get_args_from_array);
+use URI::Escape;
 
 # VERSION
 
+sub prepare_app {
+    my $self = shift;
+    if (!defined($self->uri_pattern)) {
+        die "Please configure uri_pattern";
+    }
+
+    $self->{allow_call_request} //= 1;
+    $self->{allow_help_request} //= 1;
+    $self->{allow_spec_request} //= 1;
+
+    $self->{parse_args_from_web_form}  //= 1;
+    $self->{parse_args_from_body}      //= 1;
+    $self->{parse_args_from_path_info} //= 1;
+    $self->{per_arg_encoding}          //= 1;
+
+    $self->{accept_json} //= 1;
+    $self->{accept_yaml} //= 1;
+    $self->{accept_php}  //= 1;
+
+    $self->{allow_logs} //= 1;
+}
+
+sub __err {
+    my ($msg, $code) = @_;
+    $msg .= "\n" unless $msg =~ /\n\z/;
+    [$code // 400, ["Content-Type" => "text/plain"], [$msg]];
+}
+
 sub call {
-    my ($env, $env) = @_;
+    my ($self, $env) = @_;
 
-    if ($http_req->header('X-SS-Log-Level')) {
-        $req->{log_level} = $http_req->header('X-SS-Log-Level');
-        $log->trace("Turning on chunked transfer ...");
-        $req->{chunked}++;
-    }
-    if ($http_req->header('X-SS-Mark-Chunk')) {
-        $log->trace("Turning on mark prefix on each chunk ...");
-        $req->{mark_chunk}++;
-        $log->trace("Turning on chunked transfer ...");
-        $req->{chunked}++;
+    my $req_uri = $env->{REQUEST_URI};
+    my $pat     = $self->uri_pattern;
+    unless ($req_uri =~ s/$pat//) {
+        return __err("Bad URL (doesn't match uri_pattern)");
     }
 
-    my $uri = $http_req->uri;
-    $log->trace("request URI = $uri");
-    unless ($uri =~ m!\A/+v1
-                      /+([^/]+(?:/+[^/]+)*) # module
-                      /+([^/]+?)    # func
-                      (?:;([^?]*))? # opts
-                      (?:\?|\z)
-                     !x) {
-        $self->resp([
-            400, "Invalid request URI, please use the syntax ".
-                "/v1/MODULE/SUBMODULE/FUNCTION?PARAM=VALUE..."]);
-        die;
+    # parse module & sub
+    my $module = $+{module};
+    if ($module) {
+        $module =~ s/[^A-Za-z0-9_]+/::/g;
+        $env->{"ss.request.module"} = $module;
     }
-    my ($module, $sub, $opts) = ($1, $2, $3);
-
-    $module =~ s!/+!::!g;
-    unless ($module =~ /\A\w+(?:::\w+)*\z/) {
-        $self->resp([
-            400, "Invalid module, please use alphanums only, e.g. My/Module"]);
-        die;
+    my $sub = $+{sub};
+    if ($sub) {
+        $sub =~ s/[^A-Za-z0-9_]+//g;
+        $env->{"ss.request.sub"} = $sub;
     }
-    $req->{sub_module} = $self->module_prefix ?
-        $self->module_prefix.'::'.$module : $module;
 
-    unless ($sub =~ /\A\w+(?:::\w+)*\z/) {
-        $self->resp([
-            400, "Invalid sub, please use alphanums only, e.g. my_func"]);
-        die;
-    }
-    $req->{sub_name}   = $sub;
+    # parse args
+    my $req = Plack::Request->new($env);
+    my $accept = $env->{HTTP_ACCEPT} // "";
+  PARSE_ARGS:
+    {
+        if ($self->parse_args_from_body &&
+                $accept =~ m!\A(?:
+                                 application/vnd.php.serialized|
+                                 application/json|
+                                 text/yaml)\z!x) {
+            my $args;
+            my $body_fh = $req->body;
+            my $body = join "", <$body_fh>;
+            if ($accept eq 'application/vnd.php.serialized') {
+                #$log->trace('Request is PHP serialized');
+                return __err("PHP serialized data unacceptable")
+                    unless $self->accept_php;
+                request PHP::Serialization;
+                eval { $args = PHP::Serialization::unserialize($body) };
+                return __err("Invalid PHP serialized data in request body: $@")
+                    if $@;
+            } elsif ($accept eq 'text/yaml') {
+                #$log->trace('Request is YAML');
+                return __err("YAML data unacceptable")
+                    unless $self->accept_yaml;
+                require YAML::Syck;
+                eval { $args = YAML::Load($body) };
+                return __err("Invalid YAML in request body: $@")
+                    if $@;
+            } elsif ($accept eq 'application/json') {
+                #$log->trace('Request is JSON');
+                return __err("JSON data unacceptable")
+                    unless $self->accept_json;
+                require JSON;
+                my $json = JSON->new->allow_nonref;
+                eval { $args = $json->decode($body) };
+                return __err("Invalid JSON in request body: $@")
+                    if $@;
+            }
+            return __err("Arguments must be hash (associative array)")
+                unless ref($args) eq 'HASH';
+            $env->{"ss.request.args"} = $args;
+            last PARSE_ARGS;
+        }
 
-    $req->{opts}       = $opts;
+        $req_uri =~ s/\?.*//;
+        $req_uri =~ s!^/!!;
+        if (length($req_uri) && $self->parse_args_from_path_info) {
+            my @argv = map {uri_unescape($_)} split m!/!, $req_uri;
+            # we actually parse args after we have spec (in
+            # Plack::Middleware::SubSpec::ParseArgsFromPathInfo)
+            $env->{"ss.request.argv"} = \@argv;
+        }
 
-        if ($opts =~ /l:([1-6])(m?)(?::|\z)/) {
-            $http_req->header('X-SS-Mark-Chunk' => 1) if $2;
-            my $l = $1;
-            my $level =
-                $l == 6 ? 'trace' :
-                $l == 5 ? 'debug' :
-                $l == 4 ? 'info' :
-                $l == 3 ? 'warning' :
-                $l == 2 ? 'error' :
-                $l == 1 ? 'fatal' : '';
-            $http_req->header('X-SS-Log-Level' => $level) if $level;
+        if ($self->parse_args_from_web_form) {
+            my $args = {};
+            my $form = $req->parameters;
+            while (my ($k, $v) = each %$form) {
+                if ($k =~ /(.+):j$/) {
+                    $k = $1;
+                    #$log->trace("CGI parameter $k (json)=$v");
+                    return __err("JSON data unacceptable") unless
+                        $self->accept_json;
+                    require JSON;
+                    my $json = JSON->new->allow_nonref;
+                    eval { $v = $json->decode($v) };
+                    return __err("Invalid JSON in query parameter $k: $@")
+                        if $@;
+                    $args->{$k} = $v;
+                } elsif ($k =~ /(.+):y$/) {
+                    $k = $1;
+                    #$log->trace("CGI parameter $k (yaml)=$v");
+                    return __err("YAML data unacceptable") unless
+                        $self->accept_yaml;
+                    require YAML::Syck;
+                    eval { $v = YAML::Load($v) };
+                    return __err("Invalid YAML in query parameter $k: $@")
+                        if $@;
+                    $args->{$k} = $v;
+                } elsif ($k =~ /(.+):p$/) {
+                    $k = $1;
+                    #$log->trace("PHP parameter $k (php)=$v");
+                    return __err("PHP serialized data unacceptable") unless
+                        $self->accept_php;
+                    require PHP::Serialization;
+                    eval { $v = PHP::Serialization::unserialize($v) };
+                    return __err("Invalid PHP serialized data in ".
+                                     "query parameter $k: $@") if $@;
+                    $args->{$k} = $v;
+                } else {
+                    #$log->trace("CGI parameter $k=$v");
+                    $args->{$k} = $v;
+                }
+            }
+            $env->{"ss.request.args"} = $args;
+            my $req = Plack::Request->new($env);
         }
     }
-    $log->trace("parse request URI: module=$module, sub=$sub, opts=$opts");
+
+    # parse call options in http headers
+    my $opts = {};
+    for my $k (keys %$env) {
+        next unless $k =~ /^HTTP_X_SS_(.+)/;
+        my $h = lc $1;
+        if ($h =~ /\A(?:type|log_level|output_format)\z/) {
+            $env->{"ss.request.opts"}{$h} = $env->{$k};
+        } else {
+            # XXX warn: unknown option
+        }
+    }
+    $opts->{type} //= "call";
+    $env->{"ss.request.opts"} = $opts;
+
+    # give app a chance to do more parsing
+    $self->after_parse->($self, $env) if $self->after_parse;
+
+    # checks
+    return __err("Setting log_level not allowed", 403)
+        if !$self->allow_logs && $self->{"ss.request.opts"}{log_level};
+    return __err("Call request not allowed", 403)
+        if ($opts->{type} eq 'call' && !$self->allow_call_request);
+    return __err("Spec request not allowed", 403)
+        if ($opts->{type} eq 'spec' && !$self->allow_spec_request);
+    return __err("Help request not allowed", 403)
+        if ($opts->{type} eq 'help' && !$self->allow_help_request);
+
+    # continue to app
+    $self->app->($env);
 }
 
 1;
@@ -98,15 +217,16 @@ sub call {
  use Plack::Builder;
 
  builder {
-    enable "SubSpec::ParseRequest"
-        #parse_args_from_path_info => 1,
-        #parse_args_from_web_form => 1,
-        #parse_args_from_body => 1,
-        #accept_json => 1,
-        #accept_yaml => 1,
-        #accept_php => 1,
-        #do_per_arg_decoding => 1,
-    ;
+     enable "SubSpec::ParseRequest"
+         uri_pattern => m!^/api/v1/(?<module>[^?]+)/(?<sub>[^?/]+)!,
+         after_parse => sub {
+             my $env = shift;
+             for ($env->{"ss.request.module"}) {
+                 last unless $_;
+                 s!/!::!g;
+                 $_ = "My::API::$_" unless /^My::API::/;
+             }
+         };
 
     # enable other middlewares ...
  };
@@ -114,10 +234,14 @@ sub call {
 
 =head1 DESCRIPTION
 
-This middleware parses sub call request from HTTP request (PSGI environment) and
-should normally be the first middleware put in the stack.
+This middleware parses sub call request information from HTTP request (PSGI
+environment) and should normally be the first middleware put in the stack. It
+parses module name and subroutine name from the URI, call arguments from
+URI/request body, and call options from URI/HTTP headers.
 
-The result of parsing should be put in these PSGI environment keys:
+=head2 Parsing result
+
+The result of parsing will be put in these PSGI environment keys:
 
 =over 4
 
@@ -133,7 +257,7 @@ The subroutine name to call, a string scalar.
 
 The call arguments, hashref.
 
-=item * ss.request.options
+=item * ss.request.opts
 
 Call options. A hashref with the following known keys:
 
@@ -153,12 +277,23 @@ number specifies log level: 0 is none, 1 fatal, 2 error, 3 warn, 4 info, 5
 debug, 6 trace]. Alternatively, the string "fatal", "error", etc can be used
 instead.
 
+=item * mark_chunk => BOOL (default 0)
+
+Prepend each response chunk (each element in 3rd, arrayref argument of PSGI
+response) with "L" or "R" to differentiate whether it's a log message or sub
+result. Only useful/relevant when turning on log_level.
+
+See L<Plack::Middleware::SubSpec::ServeCall>, the middleware which implements
+this.
+
 =item * output_format => STR 'yaml'/'json'/'php'/'pretty'/'nopretty'/'html' (default 'json' or 'pretty' or 'html')
 
 Specify preferred output format. The default is 'json', or 'html' if User-Agent
 is detected as a GUI browser, or 'pretty' is User-Agent header is a text browser
-or command-line client (this detection is done by
-L<Plack::Middleware::SubSpec::FormatOutput>).
+or command-line client.
+
+Format detection and formatting is done by
+L<Plack::Middleware::SubSpec::ServeCall>.
 
 Pretty-printing is done with one of L<Data::Format::Pretty>'s formatter modules.
 
@@ -166,105 +301,51 @@ Pretty-printing is done with one of L<Data::Format::Pretty>'s formatter modules.
 
 =back
 
-The next section describes how this middleware parses sub request; the default
-behaviour is rather flexible and should accomodate common needs. If your need is
-not met, however, you can write your own sub request parser middleware. Just
-remember the abovementioned PSGI environment keys that need to be produced.
+=head2 Parsing process
 
-=head2 How sub request is parsed by Plack::Middleware::SubSpec::ParseRequest
+First, B<uri_pattern> configuration is checked. It should contain a regex with
+named captures and will be matched against request URI. For example:
 
-This middleware can extract module name and sub name from request URI, sub
-arguments from URI/request body, call options from URI/request headers.
+ qr!^/api/v1/(?<module>[^?/]+)/(?<sub>[^?/]+)!
 
-First it copies C<REQUEST_URI> $env key to C<ss.temp.request_uri> so that
-request URI can be modified without ruining C<REQUEST_URI> for other
-middlewares.
+If URI doesn't match this regex, a 400 error response is returned.
 
-It then checks if C<before_parse> configuration is set. If so, it will call the
-code specified in C<before_parse> (passing $env as argument) to give a chance to
-modify/preprocess C<ss.temp.request_uri> or other data.
+The C<$+{module}> capture, after some processing (replacement of all nonalphanum
+characters into "::") will be put into C<$env->{"ss.request.module"}>.
 
-After that, it will expect request URI to be in the form of:
+The C<$+{sub}> capture will be put into C<$env->{"ss.request.sub"}>.
 
- /MODULE/SUBMODULE/FUNCTION?ARG=VAL&ARG2=VAL&...
+After that, call arguments will be parsed from the rest of the URI, or from
+query (GET) parameters, or from request body (POST).
 
-or if C<module> configuration is set, the form of:
+B<From the rest of the URI>. For example, if URI is
+C</api/v1/Module1.SubMod1/func1/a1/a2?a3=val&a4=val> then after B<uri_pattern>
+is matched it will become C<"/a1/a2?a3=val&a4=val"> and
+C<$env->{"ss.request.module"}> is C<Module1::SubMod1> and
+C<$env->{"ss.request.sub"}> is C<func1>. /a1/a2 will be split into array ["a1",
+"a2"] and processed with L<Sub::Spec::GetArgs::Array>. After that, query
+parameters will be processed as follows:
 
- /FUNCTION/ARG/ARG2/...;SHORT_OPTS?MOREARG=VAL&...
+Parameter name maps to sub argument name, but it can be suffixed with ":<CHAR>"
+to mean that the parameter value is encoded. This allows client to send complex
+data structure arguments. C<:j> means JSON-encoded, C<:y> means YAML-encoded,
+and C<:p> means PHP-serialization-encoded. You can disable this argument
+decoding by setting B<per_arg_encoding> configuration to false.
 
-or if C<module> and C<sub> is set, the form of:
-
- /ARG/ARG2/...;SHORT_OPTS?MOREARG=VAL&...
-
-Otherwise, a 400 response will be returned.
-
-MODULE/SUBMODULE is module name, the slashes will be replaced by "::"'s. For
-example, Foo/Bar will become Foo::Bar in ss.request.module.
-
-ARGS are sub arguments. Arguments will be parsed from request URI if C<module>
-and C<parse_args_from_path_info> is set, or they will be parsed from request
-body (if C<parse_args_from_body> is true), or from GET/POST request variables
-(if C<parse_args_from_web_form> is true).
-
-SHORT_OPTS are a sequence of one or more letters, specifying request options:
-
-=over 4
-
-=item * C<h> (for "help") means setting option C<type> to C<usage>.
-
-=item * C<y> means setting option C<output_format> to C<yaml>.
-
-=item * C<j> means setting option C<output_format> to C<json>.
-
-=item * C<p> means setting option C<output_format> to C<php>.
-
-=item * C<r> means setting option C<output_format> to C<>.
-
-if (length($opts)) {
-        if ($opts =~ /y/) {
-            $http_req->header('Accept' => 'text/yaml');
-        }
-        if ($opts =~ /t/) {
-            $http_req->header('Accept' => 'text/html');
-        }
-        if ($opts =~ /r/) {
-            $http_req->header('Accept' => 'text/x-spanel-pretty');
-        }
-        if ($opts =~ /R/) {
-            $http_req->header('Accept' => 'text/x-spanel-nopretty');
-        }
-        if ($opts =~ /j/) {
-            $http_req->header('Accept' => 'application/json');
-        }
-        if ($opts =~ /p/) {
-            $http_req->header('Accept' => 'application/vnd.php.serialized');
-        }
-        if ($opts =~ /[h?]/) {
-            $req->{help}++;
-            $http_req->header('Content-Type' => 'application/x-spanel-noargs');
-        }
-
-=item * C<
-
-=back
-
-To specify more options, you can use HTTP request headers, X-SS-<option-name>.
-For example, C<X-SS-Log-Level> can be used to set C<log_level> option.
+Finally, request options are parsed from HTTP request headers matching
+X-SS-<option-name>. For example, C<X-SS-Log-Level> can be used to set
+C<log_level> option. Unknown headers will simply be ignored.
 
 
 =head1 CONFIGURATIONS
 
 =over 4
 
-=item * module => STR (optional)
+=item * uri_pattern => REGEX
 
-If specified, we are only exposing a single module, and thus request URI need
-not contain module name at all.
-
-=item * sub => STR (optional)
-
-If specified, we are only exposing a single function from a single module, and
-thus request URI need not contain the module name or sub name at all.
+Regexp to match against URI, to extract module and sub name. Should contain
+named captures for C<module>, C<sub>. If regexp doesn't match, a 400 error
+response will be generated.
 
 =item * allow_call_request => BOOL (default 1)
 
@@ -281,6 +362,24 @@ this off on some production servers.
 
 Whether to allow requests for sub spec. You might want to turn this off on some
 production servers.
+
+=item * parse_args_from_web_form => BOOL (default 1)
+
+Whether to parse arguments from web form (GET/POST parameters)
+
+=item * parse_args_from_body => BOOL (default 1)
+
+Whether to parse arguments from body (if document type is C<text/yaml>,
+C<application/json>, or C<application/vnd.php.serialized>.
+
+=item * parse_args_from_path_info => BOOL (default 0)
+
+Whether to parse arguments from path info. Note that uri_pattern will first be
+removed from URI before args are extracted. Also, parsing arguments from path
+info (array form, C</arg0/arg1/...>) requires that we have the sub spec first.
+So we need to execute the L<Plack::Middleware::SubSpec::LoadSpec> first. The
+actual parsing is done by L<Plack::Middleware::SubSpec::ParseArgsFromPathInfo>
+first.
 
 =item * allow_logs => BOOL (default 1)
 
@@ -304,41 +403,15 @@ Whether to accept YAML-encoded data (either in GET/POST request variables, etc).
 If you only want to deal with, say, JSON encoding, you might want to turn this
 off.
 
-=item * allow_return_json => BOOL (default 1)
-
-Whether we should comply when client requests JSON-encoded return data.
-
-=item * allow_return_yaml => BOOL (default 1)
-
-Whether we should comply when client requests YAML-encoded return data.
-
-=item * allow_return_php => BOOL (default 1)
-
-Whether we should comply when client requests PHP serialization-encoded return
-data.
-
 =item * per_arg_encoding => BOOL (default 1)
 
 Whether we should allow each GET/POST request variable to be encoded, e.g.
 http://foo?arg1:j=%5B1,2,3%5D ({arg1=>[1, 2, 3]}).
 
-=item * before_parse => CODE
+=item * after_parse => CODE
 
-If specified, the code will be called with $env as the argument. It can modify
-C<ss.temp.request_uri> in $env, for example if your API URL format is:
-
- /api/v1/MODULE/FUNC
-
-then you can supply this code in C<before_parse>:
-
- sub {
-     my $env = shift;
-     return unless $env->{"ss.temp.request_uri"};
-     $env->{"ss.temp.request_uri"} =~ s!^/api/v1/!/!;
- }
-
-so that ParseRequest can parse module name and sub name from
-C<ss.temp.request_uri>.
+If set, the specified code will be called with arguments ($self, $env) to allow
+doing more parsing/checks.
 
 =back
 
