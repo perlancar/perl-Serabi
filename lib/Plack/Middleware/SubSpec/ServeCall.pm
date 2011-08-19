@@ -25,7 +25,15 @@ sub prepare_app {
     $self->{allow_return_json} //= 1;
     $self->{allow_return_yaml} //= 1;
     $self->{allow_return_php}  //= 1;
-    $self->{default_output_format} //= 'json';
+}
+
+sub _pick_default_format {
+    my ($self, $env) = @_;
+    # if client is a GUI browser, choose html. otherwise, json.
+    my $ua = $env->{HTTP_USER_AGENT} // "";
+    return "html" if $ua =~ m!Mozilla/|Opera/!;
+    # mozilla already includes ff, chrome, safari, msie
+    "json";
 }
 
 sub call {
@@ -39,7 +47,8 @@ sub call {
         unless $env->{'psgi.streaming'};
 
     my $opts = $env->{'ss.request.opts'};
-    my $ofmt = $opts->{output_format} // $self->default_output_format;
+    my $ofmt = $opts->{output_format} // $self->default_output_format
+        // $self->_pick_default_format($env);
     return errpage("Unknown output format: $ofmt")
         unless $ofmt =~ /^\w+/ && $self->can("format_$ofmt");
 
@@ -169,6 +178,9 @@ LogAccess middleware).
 
 The default format to use if client does not specify 'output_format' request
 option.
+
+If unspecified, some detection logic will be done to determine default format:
+if client is a GUI browser, 'html'; otherwise, 'json'.
 
 =item * allow_return_json => BOOL (default 1)
 

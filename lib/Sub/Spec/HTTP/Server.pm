@@ -161,6 +161,11 @@ authorization based on various conditions. Normally this is put after
 authentication and before any request serving middleware
 (Plack::Middleware::SubSpec::Server*).
 
+=head2 I want to support new commands.
+
+Write a Plack::Middleware::SubSpec::Command::<cmdname> middleware and enable it
+at the appropriate position in your PSGI application.
+
 
 =head1 SEE ALSO
 

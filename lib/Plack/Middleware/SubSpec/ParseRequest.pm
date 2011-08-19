@@ -7,9 +7,7 @@ use warnings;
 use parent qw(Plack::Middleware);
 use Plack::Util::Accessor qw(
                                 uri_pattern
-                                allow_call_request
-                                allow_help_request
-                                allow_spec_request
+                                allowable_commands
                                 parse_args_from_web_form
                                 parse_args_from_body
                                 parse_args_from_path_info
@@ -36,9 +34,7 @@ sub prepare_app {
         die "Please configure uri_pattern";
     }
 
-    $self->{allow_call_request} //= 1;
-    $self->{allow_help_request} //= 1;
-    $self->{allow_spec_request} //= 1;
+    $self->{allowable_commands} //= [qw/call help spec listsub listmod/];
 
     $self->{parse_args_from_web_form}  //= 1;
     $self->{parse_args_from_body}      //= 1;
@@ -92,8 +88,8 @@ sub call {
                     unless $self->accept_php;
                 request PHP::Serialization;
                 eval { $args = PHP::Serialization::unserialize($body) };
-                return errpage("Invalid PHP serialized data in request body: $@")
-                    if $@;
+                return errpage("Invalid PHP serialized data in request body: ".
+                                   "$@") if $@;
             } elsif ($accept eq 'text/yaml') {
                 #$log->trace('Request is YAML');
                 return errpage("YAML data unacceptable")
@@ -177,13 +173,13 @@ sub call {
     for my $k (keys %$env) {
         next unless $k =~ /^HTTP_X_SS_(.+)/;
         my $h = lc $1;
-        if ($h =~ /\A(?:type|log_level|output_format|mark_log)\z/x) {
+        if ($h =~ /\A(?:command|log_level|output_format|mark_log)\z/x) {
             $opts->{$h} = $env->{$k};
         } else {
             return errpage("Invalid request option: $h");
         }
     }
-    $opts->{type} //= "call";
+    $opts->{command} //= "call";
     $env->{"ss.request.opts"} = $opts;
 
     # give app a chance to do more parsing
@@ -213,7 +209,7 @@ sub call {
 
  builder {
      enable "SubSpec::ParseRequest"
-         uri_pattern => m!^/api/v1/(?<module>[^?]+)/(?<sub>[^?/]+)!,
+         uri_pattern => m!^/api/v1/(?<module>[^?]+)?/?(?<sub>[^?/]+)?!,
          after_parse => sub {
              my $env = shift;
              for ($env->{"ss.request.module"}) {
@@ -284,13 +280,8 @@ this.
 =item * output_format => STR 'yaml'/'json'/'php'/'pretty'/'nopretty'/'html' (default 'json' or 'pretty' or 'html')
 
 Specify preferred output format. The default is 'json', or 'html' if User-Agent
-is detected as a GUI browser, or 'pretty' is User-Agent header is a text browser
-or command-line client.
-
-Format detection and formatting is done by
+is detected as a GUI browser. Format detection and formatting is done by
 L<Plack::Middleware::SubSpec::ServeCall>.
-
-Pretty-printing is done with one of L<Data::Format::Pretty>'s formatter modules.
 
 =back
 
