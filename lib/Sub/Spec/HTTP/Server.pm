@@ -147,7 +147,8 @@ name (C<$env->{"ss.request.module"}>) does not satisfy your restrictions.
 =head2 I want to automatically reload modules that changed on disk.
 
 Use one of the module-reloading module on CPAN, e.g.: L<Module::Reload> or
-L<Module::Reload::Conditional>.
+L<Module::Reload::Conditional>. Do it before/after the SubSpec::LoadModule
+middleware.
 
 
 =head1 SEE ALSO
