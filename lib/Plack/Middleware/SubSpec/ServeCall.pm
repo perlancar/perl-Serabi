@@ -158,7 +158,7 @@ requested output format is unknown/unallowed.
 
 Additionally, this middleware also provide timing information in
 $env->{'ss.start_call_time'} and $env->{'ss.finish_call_time'} (utilized by the
-AccessLog middleware).
+LogAccess middleware).
 
 
 =head1 CONFIGURATIONS

@@ -50,7 +50,7 @@ First, write C<app.psgi>:
      enable "SubSpec::ServeCall";
      enable "SubSpec::ServeHelp";
      enable "SubSpec::ServeSpec";
-     enable "SubSpec::AccessLog";
+     enable "SubSpec::LogAccess";
  };
 
 Run the app with PSGI server, e.g. Gepok:
