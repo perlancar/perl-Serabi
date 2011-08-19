@@ -150,6 +150,17 @@ Use one of the module-reloading module on CPAN, e.g.: L<Module::Reload> or
 L<Module::Reload::Conditional>. Do it before/after the SubSpec::LoadModule
 middleware.
 
+=head2 I want to authenticate clients.
+
+Enable L<Plack::Middleware::Auth::Basic> (or other authen middleware you prefer)
+before SubSpec::ParseRequest.
+
+=head2 I want to authorize clients.
+
+Take a look at L<Plack::Middleware::SubSpec::Authz> which allows authorization
+based on various conditions. Normally this is put after authentication and
+before any request serving middleware (Plack::Middleware::SubSpec::Server*).
+
 
 =head1 SEE ALSO
 
