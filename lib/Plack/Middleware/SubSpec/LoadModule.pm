@@ -15,7 +15,7 @@ use Module::Load;
 #    my $self = shift;
 #}
 
-# XXX repeat
+# XXX this is duplicated in each middleware. refactor.
 sub __err {
     my ($msg, $code) = @_;
     $msg .= "\n" unless $msg =~ /\n\z/;

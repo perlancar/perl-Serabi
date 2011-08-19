@@ -51,6 +51,7 @@ sub prepare_app {
     $self->{allow_logs} //= 1;
 }
 
+# XXX this is duplicated in each middleware. refactor.
 sub __err {
     my ($msg, $code) = @_;
     $msg .= "\n" unless $msg =~ /\n\z/;
