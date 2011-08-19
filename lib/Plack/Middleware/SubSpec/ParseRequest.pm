@@ -24,6 +24,7 @@ use Plack::Util::Accessor qw(
                                 after_parse
                         );
 
+use Plack::Util::SubSpec qw(errpage);
 use Sub::Spec::GetArgs::Array qw(get_args_from_array);
 use URI::Escape;
 
@@ -51,20 +52,13 @@ sub prepare_app {
     $self->{allow_logs} //= 1;
 }
 
-# XXX this is duplicated in each middleware. refactor.
-sub __err {
-    my ($msg, $code) = @_;
-    $msg .= "\n" unless $msg =~ /\n\z/;
-    [$code // 400, ["Content-Type" => "text/plain"], [$msg]];
-}
-
 sub call {
     my ($self, $env) = @_;
 
     my $req_uri = $env->{REQUEST_URI};
     my $pat     = $self->uri_pattern;
     unless ($req_uri =~ s/$pat//) {
-        return __err("Bad URL (doesn't match uri_pattern)");
+        return errpage("Bad URL (doesn't match uri_pattern)");
     }
 
     # parse module & sub
@@ -94,31 +88,31 @@ sub call {
             my $body = join "", <$body_fh>;
             if ($accept eq 'application/vnd.php.serialized') {
                 #$log->trace('Request is PHP serialized');
-                return __err("PHP serialized data unacceptable")
+                return errpage("PHP serialized data unacceptable")
                     unless $self->accept_php;
                 request PHP::Serialization;
                 eval { $args = PHP::Serialization::unserialize($body) };
-                return __err("Invalid PHP serialized data in request body: $@")
+                return errpage("Invalid PHP serialized data in request body: $@")
                     if $@;
             } elsif ($accept eq 'text/yaml') {
                 #$log->trace('Request is YAML');
-                return __err("YAML data unacceptable")
+                return errpage("YAML data unacceptable")
                     unless $self->accept_yaml;
                 require YAML::Syck;
                 eval { $args = YAML::Load($body) };
-                return __err("Invalid YAML in request body: $@")
+                return errpage("Invalid YAML in request body: $@")
                     if $@;
             } elsif ($accept eq 'application/json') {
                 #$log->trace('Request is JSON');
-                return __err("JSON data unacceptable")
+                return errpage("JSON data unacceptable")
                     unless $self->accept_json;
                 require JSON;
                 my $json = JSON->new->allow_nonref;
                 eval { $args = $json->decode($body) };
-                return __err("Invalid JSON in request body: $@")
+                return errpage("Invalid JSON in request body: $@")
                     if $@;
             }
-            return __err("Arguments must be hash (associative array)")
+            return errpage("Arguments must be hash (associative array)")
                 unless ref($args) eq 'HASH';
             $env->{"ss.request.args"} = $args;
             last PARSE_ARGS;
@@ -140,32 +134,32 @@ sub call {
                 if ($k =~ /(.+):j$/) {
                     $k = $1;
                     #$log->trace("CGI parameter $k (json)=$v");
-                    return __err("JSON data unacceptable") unless
+                    return errpage("JSON data unacceptable") unless
                         $self->accept_json;
                     require JSON;
                     my $json = JSON->new->allow_nonref;
                     eval { $v = $json->decode($v) };
-                    return __err("Invalid JSON in query parameter $k: $@")
+                    return errpage("Invalid JSON in query parameter $k: $@")
                         if $@;
                     $args->{$k} = $v;
                 } elsif ($k =~ /(.+):y$/) {
                     $k = $1;
                     #$log->trace("CGI parameter $k (yaml)=$v");
-                    return __err("YAML data unacceptable") unless
+                    return errpage("YAML data unacceptable") unless
                         $self->accept_yaml;
                     require YAML::Syck;
                     eval { $v = YAML::Load($v) };
-                    return __err("Invalid YAML in query parameter $k: $@")
+                    return errpage("Invalid YAML in query parameter $k: $@")
                         if $@;
                     $args->{$k} = $v;
                 } elsif ($k =~ /(.+):p$/) {
                     $k = $1;
                     #$log->trace("PHP parameter $k (php)=$v");
-                    return __err("PHP serialized data unacceptable") unless
+                    return errpage("PHP serialized data unacceptable") unless
                         $self->accept_php;
                     require PHP::Serialization;
                     eval { $v = PHP::Serialization::unserialize($v) };
-                    return __err("Invalid PHP serialized data in ".
+                    return errpage("Invalid PHP serialized data in ".
                                      "query parameter $k: $@") if $@;
                     $args->{$k} = $v;
                 } else {
@@ -183,10 +177,10 @@ sub call {
     for my $k (keys %$env) {
         next unless $k =~ /^HTTP_X_SS_(.+)/;
         my $h = lc $1;
-        if ($h =~ /\A(?:type|log_level|output_format)\z/) {
-            $env->{"ss.request.opts"}{$h} = $env->{$k};
+        if ($h =~ /\A(?:type|log_level|output_format|mark_log)\z/x) {
+            $opts->{$h} = $env->{$k};
         } else {
-            # XXX warn: unknown option
+            return errpage("Invalid request option: $h");
         }
     }
     $opts->{type} //= "call";
@@ -196,13 +190,13 @@ sub call {
     $self->after_parse->($self, $env) if $self->after_parse;
 
     # checks
-    return __err("Setting log_level not allowed", 403)
-        if !$self->allow_logs && $self->{"ss.request.opts"}{log_level};
-    return __err("Call request not allowed", 403)
+    return errpage("Setting log_level not allowed", 403)
+        if !$self->allow_logs && $opts->{log_level};
+    return errpage("Call request not allowed", 403)
         if ($opts->{type} eq 'call' && !$self->allow_call_request);
-    return __err("Spec request not allowed", 403)
+    return errpage("Spec request not allowed", 403)
         if ($opts->{type} eq 'spec' && !$self->allow_spec_request);
-    return __err("Help request not allowed", 403)
+    return errpage("Help request not allowed", 403)
         if ($opts->{type} eq 'help' && !$self->allow_help_request);
 
     # continue to app
@@ -278,11 +272,11 @@ number specifies log level: 0 is none, 1 fatal, 2 error, 3 warn, 4 info, 5
 debug, 6 trace]. Alternatively, the string "fatal", "error", etc can be used
 instead.
 
-=item * mark_chunk => BOOL (default 0)
+=item * mark_log => BOOL (default 0)
 
-Prepend each response chunk (each element in 3rd, arrayref argument of PSGI
-response) with "L" or "R" to differentiate whether it's a log message or sub
-result. Only useful/relevant when turning on log_level.
+Prepend each log message with "L" (and response with "R"). Only useful/relevant
+when turning on log_level, so clients can parse/separate log message from
+response.
 
 See L<Plack::Middleware::SubSpec::ServeCall>, the middleware which implements
 this.

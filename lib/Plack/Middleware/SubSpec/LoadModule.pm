@@ -8,6 +8,7 @@ use parent qw(Plack::Middleware);
 use Plack::Util::Accessor qw(debug);
 
 use Module::Load;
+use Plack::Util::SubSpec qw(errpage);
 
 # VERSION
 
@@ -15,21 +16,14 @@ use Module::Load;
 #    my $self = shift;
 #}
 
-# XXX this is duplicated in each middleware. refactor.
-sub __err {
-    my ($msg, $code) = @_;
-    $msg .= "\n" unless $msg =~ /\n\z/;
-    [$code // 400, ["Content-Type" => "text/plain"], [$msg]];
-}
-
 sub call {
     my ($self, $env) = @_;
 
     my $module = $env->{'ss.request.module'};
-    return __err("No ss.request.module/ss.request.module defined", 500)
-        unless $module && $sub;
+    return errpage("No ss.request.module/ss.request.module defined", 500)
+        unless $module;
     eval { load $module };
-    return __err("Can't load module".($self->debug ? ": $@" : ""), 500)
+    return errpage("Can't load module".($self->debug ? ": $@" : ""), 500)
         if $@;
     # continue to app
     $self->app->($env);

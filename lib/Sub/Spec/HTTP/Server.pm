@@ -101,7 +101,7 @@ You can do something like this:
          $env->{"ss.request.module"} = "Foo";
      };
 
-=head1 I want to easily let user specify output format (e.g. /api/v1/json/... or /api/v1/yaml/...)
+=head1 I want to let user specify output format from URI (e.g. /api/v1/json/... or /api/v1/yaml/...)
 
 You can do something like:
 
@@ -113,12 +113,11 @@ You can do something like:
          $env->{"ss.request.opts"}{output_format} = $1;
      };
 
-=head1 I want to add another output format (e.g. XML, MessagePack, Storable, etc).
+=head1 I want to support another output format (e.g. XML, MessagePack, etc).
 
-You can subclass L<Plack::Middleware::SubSpec::ServeCall> and override
-format_output() to support more formats. Or you can try to convince me that the
-output format is popular enough to be included in
-Plack::Middleware::SubSpec::ServeCall.
+Subclass L<Plack::Middleware::SubSpec::ServeCall> and add format_<fmtname>
+method. The method accepts sub response and is expected to return a tuplet
+($output, $content_type).
 
 =head1 I need custom URI syntax (e.g. not exposing real module and/or func name)
 
@@ -157,9 +156,10 @@ before SubSpec::ParseRequest.
 
 =head2 I want to authorize clients.
 
-Take a look at L<Plack::Middleware::SubSpec::Authz> which allows authorization
-based on various conditions. Normally this is put after authentication and
-before any request serving middleware (Plack::Middleware::SubSpec::Server*).
+Take a look at L<Plack::Middleware::SubSpec::Authz::ACL> which allows
+authorization based on various conditions. Normally this is put after
+authentication and before any request serving middleware
+(Plack::Middleware::SubSpec::Server*).
 
 
 =head1 SEE ALSO
