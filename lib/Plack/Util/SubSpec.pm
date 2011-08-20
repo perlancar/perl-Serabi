@@ -3,6 +3,8 @@ package Plack::Util::SubSpec;
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(errpage);
 
+# VERSION
+
 sub errpage {
     my ($msg, $code) = @_;
     $msg .= "\n" unless $msg =~ /\n\z/;

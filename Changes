@@ -1,12 +1,13 @@
 Revision history for Sub::Spec::HTTP::Server
 
-0.06     2011-08-0x*
+0.06     2011-08-20
 
          [INCOMPATIBLE CHANGES]
 
          - Web server portion refactored out into separate distribution (Gepok).
            Now PSGI-based and more modular (e.g. authentication/authorization
-           separated as middleware).
+           separated as middleware). Some commands not yet implemented (help,
+           spec, etc). No tests yet.
 
 
 0.05     2011-06-17
