@@ -39,8 +39,12 @@ sub call {
 
     # call app first
     my $res = $self->app->($env);
-
-    $self->log_access($env);
+    return $self->response_cb(
+        $res,
+        sub {
+            my $res = shift;
+            $self->log_access($env);
+        });
 
     $res;
 }
@@ -49,6 +53,10 @@ sub log_access {
     my ($self, $env) = @_;
 
     my $now = [gettimeofday];
+
+    my $cmd = $env->{'ss.request.opts'} ?
+        $env->{'ss.request.opts'}{command} : undef;
+    return unless $cmd;
 
     my $time = POSIX::strftime("%d/%b/%Y:%H:%M:%S +0000",
                                gmtime($env->{'ss.start_request_time'}));
@@ -130,7 +138,7 @@ sub log_access {
         $env->{REMOTE_ADDR},
         $server_addr,
         $env->{HTTP_USER} // "-",
-        _safe($env->{'ss.request.opts'}{command} // "-"),
+        _safe($cmd),
         _safe($env->{'ss.request.module'} // "-"),
         _safe($env->{'ss.request.sub'} // "-"),
         $args_len.($args_partial ? "p" : ""), $args_s,
@@ -166,8 +174,11 @@ __END__
 
 =head1 DESCRIPTION
 
-This middleware forwards the request to given app and logs request. The log
-looks like this (all in one line):
+This middleware forwards the request to given app and logs request. Only HTTP
+requests which have been parsed by ParseRequest (has
+$env->{'ss.request.opts'}{command}) will be logged.
+
+The log looks like this (all in one line):
 
  [20/Aug/2011:22:05:38 +0000] [127.0.0.1] [tcp:80] [libby] call MyModule my_func
  [args 14 {"name":"val"}] [resp 12 [200,"OK",1]] 2.123ms 5.947ms
