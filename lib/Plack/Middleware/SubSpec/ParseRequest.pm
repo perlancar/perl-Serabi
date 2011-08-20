@@ -23,7 +23,6 @@ use Plack::Util::Accessor qw(
                         );
 
 use Plack::Util::SubSpec qw(errpage);
-use Sub::Spec::GetArgs::Array qw(get_args_from_array);
 use URI::Escape;
 
 # VERSION
@@ -188,12 +187,8 @@ sub call {
     # checks
     return errpage("Setting log_level not allowed", 403)
         if !$self->allow_logs && $opts->{log_level};
-    return errpage("Call request not allowed", 403)
-        if ($opts->{type} eq 'call' && !$self->allow_call_request);
-    return errpage("Spec request not allowed", 403)
-        if ($opts->{type} eq 'spec' && !$self->allow_spec_request);
-    return errpage("Help request not allowed", 403)
-        if ($opts->{type} eq 'help' && !$self->allow_help_request);
+    return errpage("Command $opts->{command} not allowed", 403)
+        unless grep {$_ eq $opts->{command}} @{$self->allowable_commands};
 
     # continue to app
     $self->app->($env);
@@ -333,21 +328,11 @@ Regexp to match against URI, to extract module and sub name. Should contain
 named captures for C<module>, C<sub>. If regexp doesn't match, a 400 error
 response will be generated.
 
-=item * allow_call_request => BOOL (default 1)
+=item * allowable_commands => ARRAY (default [qw/call help spec listmod listsub/])
 
-Whether to allow subroutine call, default is 1. Unless you want your API service
-to only serve e.g. help/usage information or sub spec, you'd want to enable
-this.
-
-=item * allow_help_request => BOOL (default 1)
-
-Whether to allow requests for help/usage information. You might want to turn
-this off on some production servers.
-
-=item * allow_spec_request => BOOL (default 1)
-
-Whether to allow requests for sub spec. You might want to turn this off on some
-production servers.
+Which commands to allow. Default is all commands. If you want to disable certain
+commands, exclude it from the list. In principle the most important command is
+'call', while the others are just helpers.
 
 =item * parse_args_from_web_form => BOOL (default 1)
 

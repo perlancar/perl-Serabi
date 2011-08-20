@@ -20,11 +20,11 @@ sub call {
     my ($self, $env) = @_;
 
     my $module = $env->{'ss.request.module'};
-    return errpage("No ss.request.module/ss.request.module defined", 500)
-        unless $module;
-    eval { load $module };
-    return errpage("Can't load module".($self->debug ? ": $@" : ""), 500)
-        if $@;
+    if ($module) {
+        eval { load $module };
+        return errpage("Can't load module".($self->debug ? ": $@" : ""), 500)
+            if $@;
+    }
     # continue to app
     $self->app->($env);
 }
@@ -34,32 +34,31 @@ sub call {
 
 =head1 SYNOPSIS
 
- # in your app.psgi
+ # in app.psgi
  use Plack::Builder;
 
  builder {
-     # enable other middlewares ...
      enable "SubSpec::LoadModule";
-    # enable other middlewares ...
  };
 
 
 =head1 DESCRIPTION
 
-This middleware load module specified in $env->{'ss.request.module'} (so
-obviously it should be executed after ParseRequest). It basically just pass it
-to L<Module::Load>'s load() and return 500 error code if module cannot be
-loaded.
+This middleware loads module specified in $env->{'ss.request.module'} using
+L<Module::Load>. Will do nothing if module is not specified. Will return 500
+error if failed to load module. It should be enabled after the
+SubSpec::ParseRequest middleware.
 
-If you want custom module loading (e.g. with autoreloading capability, loading
-other from filesystem, etc), please write a middleware under
-Plack::Middleware::SubSpec::LoadModule::* namespace.
 
 =head1 CONFIGURATIONS
 
 =over 4
 
-=item * debug => BOOL
+=item * debug => BOOL (default 0)
+
+If set to true, will display full error message in error page when failing to
+load module. Otherwise, only a generic "failed to load module" message is
+displayed.
 
 =back
 

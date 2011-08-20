@@ -1,4 +1,4 @@
-package Plack::Middleware::SubSpec::ServeCall;
+package Plack::Middleware::SubSpec::Command::call;
 
 use 5.010;
 use strict;
@@ -39,9 +39,8 @@ sub _pick_default_format {
 sub call {
     my ($self, $env) = @_;
 
-    unless ($env->{'ss.request.opts'}{type} eq 'call') {
-        return $self->app->($env);
-    }
+    return $self->app->($env) unless
+        $env->{'ss.request.opts'}{command} eq 'call';
 
     die "This middleware needs psgi.streaming support"
         unless $env->{'psgi.streaming'};
@@ -110,6 +109,8 @@ sub call {
             $sub_res = $call_sub->();
         }
 
+        $env->{'ss.response'} = $sub_res;
+
         my $fmt_method = "format_$ofmt";
         my ($res, $ct) = $self->$fmt_method($sub_res);
 
@@ -144,7 +145,7 @@ sub format_php {
 }
 
 1;
-# ABSTRACT: Call subroutine and format the result
+# ABSTRACT: Handle 'call' command (call subroutine and return the result)
 
 =head1 SYNOPSIS
 
@@ -153,7 +154,7 @@ sub format_php {
 
  builder {
      # enable other middlewares ...
-     enable "SubSpec::ServeCall";
+     enable "SubSpec::Command::call";
      # enable other middlewares ...
  };
 
@@ -161,9 +162,8 @@ sub format_php {
 =head1 DESCRIPTION
 
 This middleware uses L<Sub::Spec::Caller> to call the requested subroutine and
-format its result. Will do nothing if request type
-($env->{'ss.request.opts'}{'type'}) is not 'call'. Error 500 will be returned if
-requested output format is unknown/unallowed.
+format its result. Will return error 500 will be returned if requested output
+format is unknown/unallowed.
 
 Additionally, this middleware also provide timing information in
 $env->{'ss.start_call_time'} and $env->{'ss.finish_call_time'} (utilized by the
@@ -201,10 +201,5 @@ Impose time limit, using alarm(). If coderef is given, it will be called for
 every request with ($self, $env) argument and expected to return the time limit.
 
 =back
-
-
-=head1 SEE ALSO
-
-L<Plack::Middleware::SubSpec::ServeHelp>
 
 =cut

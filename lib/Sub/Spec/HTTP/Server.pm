@@ -24,7 +24,11 @@ http://<host>/api/v1/<module>/<func>:
  1;
 
  package My::API::Adder::Array;
- $SPEC{add_array} = {args => {a1=>"array*", a2=>"array*"}};
+ $SPEC{add_array} = {
+     summary => 'Concatenate two arrays together',
+     args => {a1=>["array*" => {summary => 'First array'}],
+              a2=>["array*" => {summary => 'Second array'}]},
+ };
  sub add { my %args=@_; [200, "OK", [@{$args{a1}}, @{$args{a2}}]] }
  1;
 
@@ -35,6 +39,7 @@ First, write C<app.psgi>:
 
  builder {
      # this is the basic composition
+     enable "SubSpec::LogAccess";
      enable "SubSpec::ParseRequest"
          uri_pattern => qr!^/api/v1/(?<module>[^?]+)/(?<sub>[^?/]+)!,
          after_parse => sub {
@@ -47,10 +52,11 @@ First, write C<app.psgi>:
          };
      enable "SubSpec::LoadModule";
      enable "SubSpec::GetSpec";
-     enable "SubSpec::ServeCall";
-     enable "SubSpec::ServeHelp";
-     enable "SubSpec::ServeSpec";
-     enable "SubSpec::LogAccess";
+     enable "SubSpec::Command::call";
+     enable "SubSpec::Command::help";
+     enable "SubSpec::Command::spec";
+     enable "SubSpec::Command::listmod";
+     enable "SubSpec::Command::listsub";
  };
 
 Run the app with PSGI server, e.g. Gepok:
@@ -63,8 +69,31 @@ Call your functions over HTTP(S)?:
  % curl http://localhost:5000/api/v1/Adder/add/2/3
  [200,"OK",6]
 
- % curl 'https://localhost:5001/api/v1/Adder/Array/add?a1:j=[1]&a2:j=[2,3]'
+ % curl -H 'X-SS-Log-Level: trace' \
+   'https://localhost:5001/api/v1/Adder/Array/add?a1:j=[1]&a2:j=[2,3]'
  [200,"OK",[1,2,3]]
+
+Request help/usage information:
+
+ % curl -H 'X-SS-Command: help' \
+   'http://localhost:5000/api/v1/Adder/Array/add'
+ My::API::Adder::Array::add - Concatenate two arrays together
+
+ Arguments:
+   a1   (array, required) First array
+   a2   (array, required) Second array
+
+List available function in a module:
+
+ % curl -H 'X-SS-Command: listsub' \
+   'http://localhost:5000/api/v1/Adder/Array'
+ ['add_array']
+
+List available modules:
+
+ % curl -H 'X-SS-Command: listmod' \
+   'http://localhost:5000/api/v1/Adder/Array'
+ ['add_array']
 
 
 =head1 DESCRIPTION
@@ -163,8 +192,11 @@ authentication and before any request serving middleware
 
 =head2 I want to support new commands.
 
-Write a Plack::Middleware::SubSpec::Command::<cmdname> middleware and enable it
-at the appropriate position in your PSGI application.
+You can write a Plack::Middleware::SubSpec::Command::<cmdname> middleware and
+enable it at the appropriate position in your PSGI application. But first
+consider if that is really what you want. If you want to serve static files or
+do stuffs unrelated to calling subroutines or subroutine spec, you ought to put
+it somewhere else.
 
 
 =head1 SEE ALSO
