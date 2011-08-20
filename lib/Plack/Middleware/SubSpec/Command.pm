@@ -11,6 +11,10 @@ use Plack::Util::Accessor qw(
                                 time_limit
                         );
 
+use Log::Any::Adapter;
+use Plack::Util::SubSpec qw(errpage);
+use Time::HiRes qw(gettimeofday);
+
 # VERSION
 
 sub prepare_app {
@@ -58,7 +62,8 @@ sub format_html {
 sub call {
     my ($self, $env) = @_;
 
-    my $mycmd = ref($self); $mycmd =~ s/.+:://
+    use Data::Dump; dd($self);
+    my $mycmd = ref($self); $mycmd =~ s/.+:://;
     return $self->app->($env) unless
         $env->{'ss.request.opts'}{command} eq $mycmd;
 
@@ -76,7 +81,7 @@ sub call {
     return sub {
         my $respond = shift;
 
-        my $exec_command = sub {
+        my $exec_cmd = sub {
             my $time_limit = $self->time_limit // 0;
             if (ref($time_limit) eq 'CODE') {
                 $time_limit = $time_limit->($self, $env) // 0;
@@ -101,7 +106,7 @@ sub call {
         my $writer;
         my $loglvl  = $opts->{'log_level'};
         my $marklog = $opts->{'mark_log'};
-        my $sub_res;
+        my $cmd_res;
         if ($loglvl) {
             unless ($loglvl =~ /\A(?:fatal|error|warn|info|debug|trace)\z/i) {
                 $respond->(errpage("Unknown log level"));
@@ -122,16 +127,16 @@ sub call {
                     $writer->write($msg);
                 },
             );
-            $sub_res = $call_sub->();
+            $cmd_res = $exec_cmd->();
         } else {
-            $sub_res = $call_sub->();
+            $cmd_res = $exec_cmd->();
         }
 
         $env->{'ss.command_executed'} = 1;
-        $env->{'ss.response'} = $sub_res;
+        $env->{'ss.response'} = $cmd_res;
 
         my $fmt_method = "format_$ofmt";
-        my ($res, $ct) = $self->$fmt_method($sub_res);
+        my ($res, $ct) = $self->$fmt_method($cmd_res);
 
         if ($writer) {
             $writer->write($marklog ? "R$res" : $res);

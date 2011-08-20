@@ -6,21 +6,17 @@ use warnings;
 
 use parent qw(Plack::Middleware::SubSpec::Command);
 
-use Log::Any::Adapter;
-use Plack::Util::SubSpec qw(errpage);
 use Sub::Spec::Caller qw(call_sub);
-use Time::HiRes qw(gettimeofday);
 
 # VERSION
 
-sub exec_call {
+sub exec_command {
     my ($self, $env) = @_;
     call_sub(
         $env->{'ss.request.module'},
         $env->{'ss.request.sub'},
         $env->{'ss.request.args'},
         {load=>0, convert_datetime_objects=>1});
-    $env->{'ss.finish_command_time'} = [gettimeofday];
 }
 
 1;

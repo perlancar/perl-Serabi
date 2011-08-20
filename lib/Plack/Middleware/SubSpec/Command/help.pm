@@ -11,10 +11,10 @@ use Plack::Util::SubSpec qw(errpage);
 
 # VERSION
 
-sub prepare_app {
-    my $self = shift;
-    die "Not yet implemented";
-}
+#sub prepare_app {
+#    my $self = shift;
+#    die "Not yet implemented";
+#}
 
 sub call {
     my ($self, $env) = @_;
