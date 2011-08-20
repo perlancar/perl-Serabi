@@ -199,10 +199,12 @@ authentication and before any request serving middleware
 =head2 I want to support new commands.
 
 You can write a Plack::Middleware::SubSpec::Command::<cmdname> middleware and
-enable it at the appropriate position in your PSGI application. But first
-consider if that is really what you want. If you want to serve static files or
-do stuffs unrelated to calling subroutines or subroutine spec, you ought to put
-it somewhere else.
+enable it at the appropriate position in your PSGI application. Also you need to
+allow it in SubSpec::ParseRequest's C<allowable_commands> configuration.
+
+But first consider if that is really what you want. If you want to serve static
+files or do stuffs unrelated to calling subroutines or subroutine spec, you
+ought to put it somewhere else.
 
 
 =head1 SEE ALSO
