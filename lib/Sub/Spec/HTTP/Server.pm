@@ -144,9 +144,15 @@ You can do something like:
 
 =head1 I want to support another output format (e.g. XML, MessagePack, etc).
 
-Subclass L<Plack::Middleware::SubSpec::ServeCall> and add format_<fmtname>
-method. The method accepts sub response and is expected to return a tuplet
-($output, $content_type).
+Add a format_<fmtname> method to L<Plack::Middleware::SubSpec::Command> and add
+format_<fmtname> method. The method accepts sub response and is expected to
+return a tuplet ($output, $content_type).
+
+Note that you do not have to modify the Plack/Middleware/SubSpec/Command.pm file
+itself. You can inject the method from another file.
+
+Also make sure that the output format is allowed (see configuration
+C<allowable_output_formats> in the command handler middleware).
 
 =head1 I need custom URI syntax (e.g. not exposing real module and/or func name)
 
