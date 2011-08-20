@@ -69,13 +69,13 @@ Call your functions over HTTP(S)?:
  % curl http://localhost:5000/api/v1/Adder/add/2/3
  [200,"OK",6]
 
- % curl -H 'X-SS-Log-Level: trace' \
+ % curl -H 'X-SS-Opt-Log-Level: trace' \
    'https://localhost:5001/api/v1/Adder/Array/add?a1:j=[1]&a2:j=[2,3]'
  [200,"OK",[1,2,3]]
 
 Request help/usage information:
 
- % curl -H 'X-SS-Command: help' \
+ % curl -H 'X-SS-Opt-Command: help' \
    'http://localhost:5000/api/v1/Adder/Array/add'
  My::API::Adder::Array::add - Concatenate two arrays together
 
@@ -85,13 +85,13 @@ Request help/usage information:
 
 List available function in a module:
 
- % curl -H 'X-SS-Command: listsub' \
+ % curl -H 'X-SS-Opt-Command: listsub' \
    'http://localhost:5000/api/v1/Adder/Array'
  ['add_array']
 
 List available modules:
 
- % curl -H 'X-SS-Command: listmod' \
+ % curl -H 'X-SS-Opt-Command: listmod' \
    'http://localhost:5000/api/v1/Adder/Array'
  ['add_array']
 

@@ -170,7 +170,7 @@ sub call {
     # parse call options in http headers
     my $opts = {};
     for my $k (keys %$env) {
-        next unless $k =~ /^HTTP_X_SS_(.+)/;
+        next unless $k =~ /^HTTP_X_SS_OPT_(.+)/;
         my $h = lc $1;
         if ($h =~ /\A(?:command|log_level|output_format|mark_log)\z/x) {
             $opts->{$h} = $env->{$k};
