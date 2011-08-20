@@ -54,9 +54,7 @@ sub log_access {
 
     my $now = [gettimeofday];
 
-    my $cmd = $env->{'ss.request.opts'} ?
-        $env->{'ss.request.opts'}{command} : undef;
-    return unless $cmd;
+    return unless $env->{'ss.command_executed'};
 
     my $time = POSIX::strftime("%d/%b/%Y:%H:%M:%S +0000",
                                gmtime($env->{'ss.start_request_time'}));
@@ -96,11 +94,11 @@ sub log_access {
     }
 
     my $subt;
-    if ($env->{'ss.start_call_time'}) {
-        if ($env->{'ss.finish_call_time'}) {
+    if ($env->{'ss.start_command_time'}) {
+        if ($env->{'ss.finish_command_time'}) {
             $subt = sprintf("%.3fms",
-                            1000*tv_interval($env->{'ss.start_call_time'},
-                                             $env->{'ss.finish_call_time'}));
+                            1000*tv_interval($env->{'ss.start_command_time'},
+                                             $env->{'ss.finish_command_time'}));
         } else {
             $subt = "D";
         }
@@ -138,7 +136,7 @@ sub log_access {
         $env->{REMOTE_ADDR},
         $server_addr,
         $env->{HTTP_USER} // "-",
-        _safe($cmd),
+        _safe($env->{'ss.request.opts'}{command}),
         _safe($env->{'ss.request.module'} // "-"),
         _safe($env->{'ss.request.sub'} // "-"),
         $args_len.($args_partial ? "p" : ""), $args_s,
@@ -174,9 +172,9 @@ __END__
 
 =head1 DESCRIPTION
 
-This middleware forwards the request to given app and logs request. Only HTTP
-requests which have been parsed by ParseRequest (has
-$env->{'ss.request.opts'}{command}) will be logged.
+This middleware forwards the request to given app and logs request. Only
+requests which have executed commands (has
+$env->{'ss.request.opts'}{command_executed} set) will be logged.
 
 The log looks like this (all in one line):
 

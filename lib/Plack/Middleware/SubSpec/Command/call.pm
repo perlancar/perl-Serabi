@@ -65,13 +65,13 @@ sub call {
             eval {
                 local $SIG{ALRM} = sub { die "Timed out\n" };
                 alarm $time_limit;
-                $env->{'ss.start_call_time'} = [gettimeofday];
+                $env->{'ss.start_command_time'} = [gettimeofday];
                 $sub_res = call_sub(
                     $env->{'ss.request.module'},
                     $env->{'ss.request.sub'},
                     $env->{'ss.request.args'},
                     {load=>0, convert_datetime_objects=>1});
-                $env->{'ss.finish_call_time'} = [gettimeofday];
+                $env->{'ss.finish_command_time'} = [gettimeofday];
             };
             alarm 0;
             $sub_res // [500,
@@ -109,6 +109,7 @@ sub call {
             $sub_res = $call_sub->();
         }
 
+        $env->{'ss.command_executed'} = 1;
         $env->{'ss.response'} = $sub_res;
 
         my $fmt_method = "format_$ofmt";
@@ -164,10 +165,6 @@ sub format_php {
 This middleware uses L<Sub::Spec::Caller> to call the requested subroutine and
 format its result. Will return error 500 will be returned if requested output
 format is unknown/unallowed.
-
-Additionally, this middleware also provide timing information in
-$env->{'ss.start_call_time'} and $env->{'ss.finish_call_time'} (utilized by the
-LogAccess middleware).
 
 
 =head1 CONFIGURATIONS
