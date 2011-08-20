@@ -24,7 +24,8 @@ sub call {
         my $spec     = $module . "::SPEC";
         no strict 'refs';
         my $sub_spec = ${$spec}{$sub};
-        return errpage("Can't find sub spec for $module::$sub", 500);
+        return errpage("Can't find sub spec for $module\::$sub", 500)
+            unless $sub_spec;
         $env->{'ss.spec'} = $sub_spec;
     }
 
