@@ -132,6 +132,11 @@ sub call {
             $cmd_res = $exec_cmd->();
         }
 
+        errpage("Invalid response from command handler")
+            unless ref($cmd_res) eq 'ARRAY' && @$cmd_res >= 2 &&
+                $cmd_res->[0] == int($cmd_res->[0]) &&
+                    $cmd_res->[0] >= 100 && $cmd_res->[0] <= 599;
+
         $env->{'ss.command_executed'} = 1;
         $env->{'ss.response'} = $cmd_res;
 
