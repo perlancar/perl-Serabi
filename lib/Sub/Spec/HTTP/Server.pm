@@ -36,6 +36,7 @@ First, write C<app.psgi>:
 
  #!perl
  use Plack::Builder;
+ use Plack::Util::SubSpec qw(errpage)
 
  builder {
      # this is the basic composition
@@ -57,6 +58,7 @@ First, write C<app.psgi>:
      enable "SubSpec::Command::spec";
      enable "SubSpec::Command::listmod";
      enable "SubSpec::Command::listsub";
+     sub { errpage("Command not handled", 500) };
  };
 
 Run the app with PSGI server, e.g. Gepok:
