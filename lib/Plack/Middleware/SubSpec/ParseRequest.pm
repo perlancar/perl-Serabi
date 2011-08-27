@@ -220,67 +220,14 @@ sub call {
 
 =head1 DESCRIPTION
 
-This middleware parses sub call request information from HTTP request (PSGI
+This middleware parses sub request information from HTTP request (PSGI
 environment) and should normally be the first middleware put in the stack. It
 parses module name and subroutine name from the URI, call arguments from
 URI/request body, and call options from URI/HTTP headers.
 
 =head2 Parsing result
 
-The result of parsing will be put in these PSGI environment keys:
-
-=over 4
-
-=item * ss.request.module
-
-The module name which contains the subroutine to call, a string scalar.
-
-=item * ss.request.sub
-
-The subroutine name to call, a string scalar.
-
-=item * ss.request.args
-
-The call arguments, hashref.
-
-=item * ss.request.opts
-
-Call options. A hashref with the following known keys:
-
-=over 4
-
-=item * type => STR 'call'/'usage'/'spec' (default 'call')
-
-Specify request type. 'call' is the default, meaning a request to call the
-subroutine and return the result. 'usage' requests help/usage information
-instead. 'spec' requests sub spec instead.
-
-=item * log_level => INT 0 to 6 or STR (default 0)
-
-Specify log level. If set to values larger than 0, when calling the subroutine,
-log messages produced by L<Log::Any> will be passed to the HTTP client. The
-number specifies log level: 0 is none, 1 fatal, 2 error, 3 warn, 4 info, 5
-debug, 6 trace]. Alternatively, the string "fatal", "error", etc can be used
-instead.
-
-=item * mark_log => BOOL (default 0)
-
-Prepend each log message with "L" (and response with "R"). Only useful/relevant
-when turning on log_level, so clients can parse/separate log message from
-response.
-
-See L<Plack::Middleware::SubSpec::ServeCall>, the middleware which implements
-this.
-
-=item * output_format => STR 'yaml'/'json'/'php'/'pretty'/'nopretty'/'html' (default 'json' or 'pretty' or 'html')
-
-Specify preferred output format. The default is 'json', or 'html' if User-Agent
-is detected as a GUI browser. Format detection and formatting is done by
-L<Plack::Middleware::SubSpec::ServeCall>.
-
-=back
-
-=back
+The result of parsing will be put in 'ss.request' PSGI environment key.
 
 =head2 Parsing process
 
@@ -388,6 +335,8 @@ doing more parsing/checks.
 
 
 =head1 SEE ALSO
+
+L<Sub::Spec::HTTP>
 
 L<Sub::Spec::HTTP::Client>
 
