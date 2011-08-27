@@ -13,6 +13,10 @@ other sub-/spec-related operations over HTTP. The specification should be
 implemented by servers and clients written in Perl or other languages.
 
 
+=head1 SPECIFICATION VERSION
+
+1.0
+
 =head1 TERMINOLOGIES
 
 =over 4
@@ -53,6 +57,17 @@ Always required. Default command is 'call'. The list of all currently known
 commands are written below. A server should implement some or all of the listed
 commands. It SHOULD return HTTP 502 status if a command is unknown. It can
 implement new commands if deemed necessary.
+
+'about' command, to request information about the server. For this command, no
+other request key is necessart. The server MUST return a hashref like this:
+
+ {
+  version        => [1, 0], # Sub::Spec::HTTP specification version
+  input_formats  => [qw/json phps yaml/], # supported input formats
+  output_formats => [qw/json pretty nopretty
+                        yaml phps html/], # supported output formats
+  # other extra keys are allowed
+ }
 
 'call' command, to call a subroutine and return its result. For this command, at
 least 'module' and 'sub' are required. 'args' is also required, but will default
