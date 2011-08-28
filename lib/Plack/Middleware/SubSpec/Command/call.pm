@@ -1,21 +1,19 @@
-package Plack::Middleware::SubSpec::Command::call;
+package Sub::Spec::HTTP::Server::Command;
 
 use 5.010;
 use strict;
 use warnings;
 
-use parent qw(Plack::Middleware::SubSpec::Command);
-
 use Sub::Spec::Caller qw(call_sub);
 
 # VERSION
 
-sub exec_command {
+sub handle_call {
     my ($self, $env) = @_;
     call_sub(
-        $env->{'ss.request.module'},
-        $env->{'ss.request.sub'},
-        $env->{'ss.request.args'},
+        $env->{'ss.request'}{module},
+        $env->{'ss.request'}{sub},
+        $env->{'ss.request'}{args},
         {load=>0, convert_datetime_objects=>1});
 }
 
@@ -24,19 +22,12 @@ sub exec_command {
 
 =head1 SYNOPSIS
 
- # in your app.psgi
- use Plack::Builder;
-
- builder {
-     # enable other middlewares ...
-     enable "SubSpec::Command::call";
-     # enable other middlewares ...
- };
+ # used by Plack::Middleware::SubSpec::HandleCommand
 
 
 =head1 DESCRIPTION
 
-This middleware uses L<Sub::Spec::Caller> to call the requested subroutine and
+This module uses L<Sub::Spec::Caller> to call the requested subroutine and
 format its result. Will return error 500 will be returned if requested output
 format is unknown/unallowed.
 

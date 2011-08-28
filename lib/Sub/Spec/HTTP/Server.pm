@@ -25,6 +25,7 @@ http://<host>/api/v1/<module>/<func>:
 
  package My::API::Adder::Array;
  $SPEC{add_array} = {
+
      summary => 'Concatenate two arrays together',
      args => {a1=>["array*" => {summary => 'First array'}],
               a2=>["array*" => {summary => 'Second array'}]},
@@ -37,28 +38,23 @@ First, write C<app.psgi>:
  #!perl
  use Plack::Builder;
  use Plack::Util::SubSpec qw(errpage)
+ use Sub::Spec::HTTP::Server::Command qw(
+     about call help listmod listsub usage);
 
  builder {
      # this is the basic composition
      enable "SubSpec::LogAccess";
      enable "SubSpec::ParseRequest"
-         uri_pattern => qr!^/api/v1/(?<module>[^?]+)/(?<sub>[^?/]+)!,
+         uri_pattern => qr!^/api/v1/(?<module>[^?]+)?/(?<sub>[^?/]+)?!,
          after_parse => sub {
              my $env = shift;
-             for ($env->{"ss.request.module"}) {
+             for ($env->{"ss.request"}{module}) {
                  last unless $_;
                  s!/!::!g;
                  $_ = "My::API::$_" unless /^My::API::/;
              }
          };
-     enable "SubSpec::LoadModule";
-     enable "SubSpec::GetSpec";
-     enable "SubSpec::Command::call";
-     enable "SubSpec::Command::help";
-     enable "SubSpec::Command::spec";
-     enable "SubSpec::Command::listmod";
-     enable "SubSpec::Command::listsub";
-     sub { errpage("Command not handled", 500) };
+     enable "SubSpec::HandleCommand";
  };
 
 Run the app with PSGI server, e.g. Gepok:
@@ -71,13 +67,13 @@ Call your functions over HTTP(S)?:
  % curl http://localhost:5000/api/v1/Adder/add/2/3
  [200,"OK",6]
 
- % curl -H 'X-SS-Opt-Log-Level: trace' \
+ % curl -H 'X-SS-Req-Log-Level: trace' \
    'https://localhost:5001/api/v1/Adder/Array/add?a1:j=[1]&a2:j=[2,3]'
  [200,"OK",[1,2,3]]
 
 Request help/usage information:
 
- % curl -H 'X-SS-Opt-Command: help' \
+ % curl -H 'X-SS-Req-Command: help' \
    'http://localhost:5000/api/v1/Adder/Array/add'
  My::API::Adder::Array::add - Concatenate two arrays together
 
@@ -85,17 +81,17 @@ Request help/usage information:
    a1   (array, required) First array
    a2   (array, required) Second array
 
-List available function in a module:
+List available function in a module (request key 'command' given in request
+variable):
 
- % curl -H 'X-SS-Opt-Command: listsub' \
-   'http://localhost:5000/api/v1/Adder/Array'
+ % curl 'http://localhost:5000/api/v1/Adder/Array?-ss-req-command=list_subs'
  ['add_array']
 
 List available modules:
 
- % curl -H 'X-SS-Opt-Command: listmod' \
-   'http://localhost:5000/api/v1/Adder/Array'
- ['add_array']
+ % curl -H 'X-SS-Req-Command: list_mods' \
+   'http://localhost:5000/api/v1/'
+ ['Adder','Adder::Array']
 
 
 =head1 DESCRIPTION
@@ -121,15 +117,24 @@ This module uses L<Moo> for object system.
 
 =head1 FAQ
 
+=head2 I don't want to expose my subroutines and module structure!
+
+Well, isn't exposing functions the whole point of API?
+
+If you have modules that you do not want to expose as API, simply exclude it
+(e.g. using C<allowable_modules> configuration in SubSpec::ParseRequest
+middleware. Or, create a set of wrapper modules to expose only the
+functionalities that you want to expose.
+
 =head2 I want to expose just a single module and provide a simpler API URL (e.g. without having to specify module name).
 
 You can do something like this:
 
  enable "SubSpec::ParseRequest"
-     uri_pattern => qr!^/api/v1/(?<sub>[^?/]+)!,
+     uri_pattern => qr!^/api/v1/(?<sub>[^?/]+)?!,
      after_parse => sub {
          my $env = shift;
-         $env->{"ss.request.module"} = "Foo";
+         $env->{"ss.request"}{module} = "Foo";
      };
 
 =head1 I want to let user specify output format from URI (e.g. /api/v1/json/... or /api/v1/yaml/...)
@@ -137,26 +142,29 @@ You can do something like this:
 You can do something like:
 
  enable "SubSpec::ParseRequest"
-     uri_pattern => qr!^/api/v1/(?:json|yaml)/(?<sub>[^?/]+)/(?<sub>[^?/]+)!,
+     uri_pattern => qr!^/api/v1/(?:json|yaml|j|y)/
+                       (?<sub>[^?/]+)?
+                       (?:/(?<sub>[^?/]+)?)!x,
      after_parse => sub {
          my $env = shift;
-         $env->{REQUEST_URI} =~ m!^/api/v1/(json|yaml)!;
-         $env->{"ss.request.opts"}{output_format} = $1;
+         my ($f) = $env->{REQUEST_URI} =~ m!^/api/v1/(j|y)!;
+         $env->{"ss.request"}{output_format} = $f =~ /j/ ? 'json' : 'yaml';
      };
 
 =head1 I want to support another output format (e.g. XML, MessagePack, etc).
 
-Add a format_<fmtname> method to L<Plack::Middleware::SubSpec::Command> and add
-format_<fmtname> method. The method accepts sub response and is expected to
-return a tuplet ($output, $content_type).
+Add a format_<fmtname> method to L<Plack::Middleware::SubSpec::HandleCommand>.
+The method accepts sub response and is expected to return a tuplet ($output,
+$content_type).
 
-Note that you do not have to modify the Plack/Middleware/SubSpec/Command.pm file
-itself. You can inject the method from another file.
+Note that you do not have to modify the
+Plack/Middleware/SubSpec/HandleCommand.pm file itself. You can inject the method
+from another file.
 
 Also make sure that the output format is allowed (see configuration
 C<allowable_output_formats> in the command handler middleware).
 
-=head1 I need custom URI syntax (e.g. not exposing real module and/or func name)
+=head1 I need custom URI syntax
 
 You can use ParseRequest and provide a generic B<uri_pattern> and then complete
 the request information in B<after_parse>. For example:
@@ -166,7 +174,7 @@ the request information in B<after_parse>. For example:
      after_parse => sub {
          my $env = shift;
          # parse REQUEST_URI on your own and put the result in
-         # $env->{"ss.request.module"} and $env->{"ss.request.sub"}
+         # $env->{"ss.request"}{module} and $env->{"ss.request"}{sub}
      };
 
 Or alternatively you can write your own request parser to replace ParseRequest.
@@ -211,9 +219,7 @@ ought to put it somewhere else.
 
 =head1 SEE ALSO
 
-L<Sub::Spec>
-
-L<Sub::Spec::HTTP::Client>
+L<Sub::Spec::HTTP>
 
 L<Gepok>
 

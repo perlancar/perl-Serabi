@@ -8,15 +8,11 @@ use parent qw(Plack::Middleware);
 use Plack::Util::Accessor qw(
                                 uri_pattern
                                 allowable_commands
+                                allowable_modules
                                 parse_args_from_web_form
-                                parse_args_from_body
                                 parse_args_from_path_info
-                                accept_json
                                 accept_yaml
                                 accept_php
-                                allow_return_json
-                                allow_return_yaml
-                                allow_return_php
                                 allow_logs
                                 per_arg_encoding
                                 after_parse
@@ -36,11 +32,9 @@ sub prepare_app {
     $self->{allowable_commands} //= [qw/call help spec listsub listmod/];
 
     $self->{parse_args_from_web_form}  //= 1;
-    $self->{parse_args_from_body}      //= 1;
     $self->{parse_args_from_path_info} //= 1;
     $self->{per_arg_encoding}          //= 1;
 
-    $self->{accept_json} //= 1;
     $self->{accept_yaml} //= 1;
     $self->{accept_php}  //= 1;
 
@@ -49,6 +43,8 @@ sub prepare_app {
 
 sub call {
     my ($self, $env) = @_;
+
+    $env->{"ss.request"} //= {};
 
     my $req_uri = $env->{REQUEST_URI};
     my $pat     = $self->uri_pattern;
@@ -60,12 +56,12 @@ sub call {
     my $module = $+{module};
     if ($module) {
         $module =~ s/[^A-Za-z0-9_]+/::/g;
-        $env->{"ss.request.module"} = $module;
+        $env->{"ss.request"}{module} //= $module;
     }
     my $sub = $+{sub};
     if ($sub) {
         $sub =~ s/[^A-Za-z0-9_]+//g;
-        $env->{"ss.request.sub"} = $sub;
+        $env->{"ss.request"}{sub} //= $sub;
     }
 
     # parse args
@@ -129,8 +125,6 @@ sub call {
                 if ($k =~ /(.+):j$/) {
                     $k = $1;
                     #$log->trace("CGI parameter $k (json)=$v");
-                    return errpage("JSON data unacceptable") unless
-                        $self->accept_json;
                     require JSON;
                     my $json = JSON->new->allow_nonref;
                     eval { $v = $json->decode($v) };
@@ -162,7 +156,7 @@ sub call {
                     $args->{$k} = $v;
                 }
             }
-            $env->{"ss.request.args"} = $args;
+            $env->{"ss.request"}{args} = $args;
             my $req = Plack::Request->new($env);
         }
     }
@@ -195,7 +189,7 @@ sub call {
 }
 
 1;
-# ABSTRACT: Parse sub call request from HTTP request
+# ABSTRACT: Parse HTTP request into SS request
 
 =head1 SYNOPSIS
 
