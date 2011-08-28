@@ -19,7 +19,7 @@ use Time::HiRes qw(gettimeofday);
 
 sub prepare_app {
     my $self = shift;
-    $self->{allowable_output_formats} //= [qw/html json php yaml/];
+    $self->{allowable_output_formats} //= [qw/html json phps yaml/];
 }
 
 sub _pick_default_format {
@@ -45,9 +45,9 @@ sub format_yaml {
             "text/yaml");
 }
 
-sub format_php {
+sub format_phps {
     my ($self, $sub_res) = @_;
-    require Data::Format::Pretty::PHP;
+    require Data::Format::Pretty::PHPSerialization;
     return (Data::Format::Pretty::PHP::format_pretty($sub_res),
             "application/vnd.php.serialized");
 }
@@ -176,7 +176,7 @@ option.
 If unspecified, some detection logic will be done to determine default format:
 if client is a GUI browser, 'html'; otherwise, 'json'.
 
-=item * allowable_output_formats => ARRAY (default [qw/html json php yaml/])
+=item * allowable_output_formats => ARRAY (default [qw/html json phps yaml/])
 
 Specify what output formats are allowed. When client requests an unallowed
 format, 400 error is returned.
