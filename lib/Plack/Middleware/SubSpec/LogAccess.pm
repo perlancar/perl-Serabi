@@ -54,7 +54,7 @@ sub log_access {
 
     my $now = [gettimeofday];
 
-    return unless $env->{'ss.command_executed'};
+    return unless $env->{'ss.start_command_time'};
 
     my $time = POSIX::strftime("%d/%b/%Y:%H:%M:%S +0000",
                                gmtime($env->{'ss.start_request_time'}));
@@ -68,8 +68,8 @@ sub log_access {
     state $json = JSON->new->allow_nonref;
 
     my ($args_s, $args_len, $args_partial);
-    if ($env->{'ss.request.args'}) {
-        $args_s = $json->encode($env->{'ss.request.args'});
+    if ($env->{'ss.request'}{args}) {
+        $args_s = $json->encode($env->{'ss.request'}{args});
         $args_len = length($args_s);
         $args_partial = $args_len > $self->max_args_len;
         $args_s = substr($args_s, 0, $self->max_args_len)
@@ -122,7 +122,7 @@ sub log_access {
         "[%s] ", # remote addr
         "[%s] ", # server addr
         "[user %s] ",
-        "%s %s %s ", # command module sub
+        "%s %s ", # command uri
         "[args %s %s] ",
         "[resp %s %s] ",
         "%s %s", # subt reqt
@@ -130,15 +130,15 @@ sub log_access {
         "\n"
     );
 
+    my $uri = $env->{'ss.request'}{uri};
     my $log_line = sprintf(
         $fmt,
         $time,
         $env->{REMOTE_ADDR},
         $server_addr,
         $env->{HTTP_USER} // "-",
-        _safe($env->{'ss.request.opts'}{command}),
-        _safe($env->{'ss.request.module'} // "-"),
-        _safe($env->{'ss.request.sub'} // "-"),
+        _safe($env->{'ss.request'}{command}),
+        _safe(ref($uri) ? $uri->{_uri} : ($uri // "-")),
         $args_len.($args_partial ? "p" : ""), $args_s,
         $resp_len.($resp_partial ? "p" : ""), $resp_s,
         $subt, $reqt,
@@ -173,13 +173,14 @@ __END__
 =head1 DESCRIPTION
 
 This middleware forwards the request to given app and logs request. Only
-requests which have executed commands (has
-$env->{'ss.request.opts'}{command_executed} set) will be logged.
+requests which have executed commands (has $env->{'ss.start_command_time'} set)
+will be logged.
 
 The log looks like this (all in one line):
 
- [20/Aug/2011:22:05:38 +0000] [127.0.0.1] [tcp:80] [libby] call MyModule my_func
- [args 14 {"name":"val"}] [resp 12 [200,"OK",1]] 2.123ms 5.947ms
+ [20/Aug/2011:22:05:38 +0000] [127.0.0.1] [tcp:80] [libby] call
+ pm://MyModule/my_func [args 14 {"name":"val"}] [resp 12 [200,"OK",1]]
+ 2.123ms 5.947ms
 
 The second last time is time spent executing the command (in this case, calling
 the subroutine), and the last time is time spent for the whole request (from
