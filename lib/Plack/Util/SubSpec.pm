@@ -8,7 +8,9 @@ our @EXPORT_OK = qw(errpage);
 sub errpage {
     my ($msg, $code) = @_;
     $msg .= "\n" unless $msg =~ /\n\z/;
-    [$code // 400,
+    $code //= 400;
+    $msg = "$code - $msg";
+    [$code,
      ["Content-Type" => "text/plain", "Content-Length" => length($msg)],
      [$msg]];
 }
