@@ -168,7 +168,7 @@ sub call {
                     unless $rk ~~ @known_ss_req_keys;
                 $env->{"ss.request"}{$rk} //= $v;
             } else {
-                $env->{"ss.request"}{args}{$_} //= $v;
+                $env->{"ss.request"}{args}{$k} //= $v;
             }
         }
     }
