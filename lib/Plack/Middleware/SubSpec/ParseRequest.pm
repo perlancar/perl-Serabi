@@ -260,7 +260,7 @@ sub call {
  use Plack::Builder;
 
  builder {
-     enable "SubSpec::ParseRequest"
+     enable "SubSpec::ParseRequest",
          uri_pattern => m!^/api/v1/(?<module>[^?]+)?/?(?<sub>[^?/]+)?!,
          allowable_modules => qr/^My::API/;
  };
