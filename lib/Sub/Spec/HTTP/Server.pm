@@ -45,12 +45,17 @@ First, write C<app.psgi>:
      # this is the basic composition
      enable "SubSpec::LogAccess";
      enable "SubSpec::ParseRequest"
-         uri_pattern => qr!^/api/v1/(?<module>[^?]+)?/(?<sub>[^?/]+)?!,
+         uri_pattern => qr!^/api/v1
+                           (?:/(?<module>[^?]+)
+                             (?:/(?<sub>[^?/]+)?)
+                           )?!x,
          after_parse => sub {
              my $env = shift;
-             for ($env->{"ss.request"}{module}) {
-                 last unless $_;
-                 s!/!::!g;
+             my $m = $env->{"ss.uri_pattern_matches"};
+             if ($m->{module}) {
+                 my $mod = "My::API::$m->{module}";
+                 $env->{"ss.request"}{uri} = "pm:$mod" .
+                     ($m->{sub} ? "/$m->{sub}" : "");
                  $_ = "My::API::$_" unless /^My::API::/;
              }
          };
@@ -126,7 +131,7 @@ If you have modules that you do not want to expose as API, simply exclude it
 middleware. Or, create a set of wrapper modules to expose only the
 functionalities that you want to expose.
 
-=head2 I want to expose just a single module and provide a simpler API URL (e.g. without having to specify module name).
+=head2 I want to expose just a single module (e.g. Foo) and provide a simpler API URL (e.g. without having to specify module name).
 
 You can do something like this:
 
@@ -134,7 +139,8 @@ You can do something like this:
      uri_pattern => qr!^/api/v1/(?<sub>[^?/]+)?!,
      after_parse => sub {
          my $env = shift;
-         $env->{"ss.request"}{module} = "Foo";
+         $env->{"ss.request"}{uri} = "pm:Foo/".
+             $env->{"ss.uri_pattern_matches"}{sub};
      };
 
 =head1 I want to let user specify output format from URI (e.g. /api/v1/json/... or /api/v1/yaml/...)
@@ -142,13 +148,20 @@ You can do something like this:
 You can do something like:
 
  enable "SubSpec::ParseRequest"
-     uri_pattern => qr!^/api/v1/(?:json|yaml|j|y)/
-                       (?<sub>[^?/]+)?
+     uri_pattern => qr!^/api/v1/(?<output_format>json|yaml)/
+                       (?<module>[^?/]+)?
+                       (?:/(?<sub>[^?/]+)?)!x;
+
+or:
+
+ enable "SubSpec::ParseRequest"
+     uri_pattern => qr!^/api/v1/(?<fmt>j|y)/
+                       (?<module>[^?/]+)?
                        (?:/(?<sub>[^?/]+)?)!x,
      after_parse => sub {
          my $env = shift;
-         my ($f) = $env->{REQUEST_URI} =~ m!^/api/v1/(j|y)!;
-         $env->{"ss.request"}{output_format} = $f =~ /j/ ? 'json' : 'yaml';
+         my $fmt = $env->{"ss.uri_pattern_matches"}{fmt};
+         $env->{"ss.request"}{output_format} = $fmt =~ /j/ ? 'json' : 'yaml';
      };
 
 =head1 I want to support another output format (e.g. XML, MessagePack, etc).
@@ -166,51 +179,38 @@ C<allowable_output_formats> in the command handler middleware).
 
 =head1 I need custom URI syntax
 
-You can use ParseRequest and provide a generic B<uri_pattern> and then complete
-the request information in B<after_parse>. For example:
+You can leave C<uri_pattern> empty and perform your custom URI parsing in
+C<after_parse>. For example:
 
  enable "SubSpec::ParseRequest"
-     uri_pattern => qr!!, # match anything
      after_parse => sub {
          my $env = shift;
-         # parse REQUEST_URI on your own and put the result in
-         # $env->{"ss.request"}{module} and $env->{"ss.request"}{sub}
+         # parse $env->{REQUEST_URI} on your own and put the result in
+         # $env->{"ss.request"}{uri}
      };
 
 Or alternatively you can write your own request parser to replace ParseRequest.
 
-=head2 I want to automatically load requested modules.
-
-Enable the L<Plack::Middleware::SubSpec::LoadModule> middleware.
-
-=head2 I want to limit only certain modules can be requested.
-
-In ParseRequest's B<after_parse>, you can return a 400 error response if module
-name (C<$env->{"ss.request.module"}>) does not satisfy your restrictions.
-
 =head2 I want to automatically reload modules that changed on disk.
 
 Use one of the module-reloading module on CPAN, e.g.: L<Module::Reload> or
-L<Module::Reload::Conditional>. Do it before/after the SubSpec::LoadModule
-middleware.
+L<Module::Reload::Conditional>.
 
 =head2 I want to authenticate clients.
 
-Enable L<Plack::Middleware::Auth::Basic> (or other authen middleware you prefer)
-before SubSpec::ParseRequest.
+Enable L<Plack::Middleware::Auth::Basic> (or other authen middleware
+you prefer) before SubSpec::ParseRequest.
 
 =head2 I want to authorize clients.
 
 Take a look at L<Plack::Middleware::SubSpec::Authz::ACL> which allows
 authorization based on various conditions. Normally this is put after
-authentication and before any request serving middleware
-(Plack::Middleware::SubSpec::Server*).
+authentication and before command handling.
 
 =head2 I want to support new commands.
 
-You can write a Plack::Middleware::SubSpec::Command::<cmdname> middleware and
-enable it at the appropriate position in your PSGI application. Also you need to
-allow it in SubSpec::ParseRequest's C<allowable_commands> configuration.
+Write Sub::Spec::HTTP::Server::Command::<cmdname>, and include the command in
+SubSpec::ParseRequest's C<allowable_commands> configuration.
 
 But first consider if that is really what you want. If you want to serve static
 files or do stuffs unrelated to calling subroutines or subroutine spec, you

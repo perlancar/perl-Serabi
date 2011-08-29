@@ -157,6 +157,13 @@ sub call {
 
 =head1 SYNOPSIS
 
+ # in your app.psgi
+ use Plack::Builder;
+
+ builder {
+     enable "SubSpec::HandleCommand";
+ };
+
 
 =head1 DESCRIPTION
 
@@ -170,8 +177,8 @@ This module is a base class for command handlers
 
 =item * default_output_format => STR, default 'json'
 
-The default format to use if client does not specify 'output_format' request
-option.
+The default format to use if client does not specify 'output_format' SS request
+key.
 
 If unspecified, some detection logic will be done to determine default format:
 if client is a GUI browser, 'html'; otherwise, 'json'.
