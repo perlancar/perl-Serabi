@@ -86,7 +86,6 @@ sub call {
             return errpage("Unknown SS request key: $k");
         }
     }
-    $env->{"ss.request"}{command} //= "call";
     $env->{"ss.request"}{args}    //= {};
     return errpage("args must be hash")
         unless ref($env->{"ss.request"}{args}) eq 'HASH';
@@ -227,6 +226,8 @@ sub call {
 
     # give app a chance to do more parsing
     $self->after_parse->($self, $env) if $self->after_parse;
+
+    $env->{"ss.request"}{command} //= "call";
 
     # checks
     {
