@@ -4,17 +4,22 @@ use 5.010;
 use strict;
 use warnings;
 
-use Sub::Spec::Caller qw(call_sub);
-
 # VERSION
 
 sub handle_call {
-    my ($self, $env) = @_;
-    call_sub(
-        $env->{'ss.request'}{module},
-        $env->{'ss.request'}{sub},
-        $env->{'ss.request'}{args},
-        {load=>0, convert_datetime_objects=>1});
+    my ($env) = @_;
+    my $uri = $env->{"ss.request"}{uri};
+    return [400, "SS request URI not specified"] unless $uri;
+
+    my $res;
+    eval { $res = $uri->call(%{$env->{"ss.request"}{args}}) };
+    my $eval_err = $@;
+
+    # sometimes when a sub which drops privileges dies, it has not regained
+    # privileges.
+    if ($< == 0 && $>) { $> = 0; $) = $( }
+
+    return [500, "Exception when calling $uri->{_uri}: $@"] if $@;
 }
 
 1;

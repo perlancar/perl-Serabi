@@ -25,7 +25,7 @@ use Plack::Util::Accessor qw(
                         );
 
 use JSON;
-use Plack::Util::SubSpec qw(errpage);
+use Plack::Util::SubSpec qw(errpage allowed);
 use Sub::Spec::GetArgs::Array qw(get_args_from_array);
 use Sub::Spec::URI;
 use URI::Escape;
@@ -39,8 +39,9 @@ sub prepare_app {
 
     $self->{uri_pattern} //= qr/.?/;
 
-    $self->{allowable_commands} //= [qw/call help spec list_mods list_subs/];
-    $self->{allowable_modules}  //= [];
+    $self->{allowable_commands}    //= [qw/call help spec list_mods list_subs/];
+    $self->{allowable_modules}     //= [];
+    $self->{allowable_uri_schemes} //= ['pm'];
 
     $self->{parse_args_from_web_form}  //= 1;
     $self->{parse_args_from_path_info} //= 1;
@@ -50,15 +51,6 @@ sub prepare_app {
     $self->{accept_phps} //= 1;
 
     $self->{allow_logs} //= 1;
-}
-
-sub __allowed {
-    my ($value, $pred) = @_;
-    if (ref($pred) eq 'ARRAY') {
-        return $value ~~ @$pred;
-    } else {
-        return $value =~ /$pred/;
-    }
 }
 
 my @known_ss_req_keys = qw(command uri args output_format
@@ -196,7 +188,7 @@ sub call {
         my ($scheme) = $uri =~ m!^[^:]+:!;
         errpage("Invalid SS request URI: no scheme") unless $scheme;
         errpage("SS request URI scheme `$scheme` not allowed", 403)
-            unless __allowed($scheme, $self->allowable_uri_schemes);
+            unless allowed($scheme, $self->allowable_uri_schemes);
         eval { $uri = Sub::Spec::URI->new($uri) };
         return errpage("Invalid SS request URI `$uri`: $@") if $@;
         $env->{"ss.request"}{uri} = $uri;
@@ -236,14 +228,14 @@ sub call {
 
         my $command = $env->{"ss.request"}{command};
         return errpage("Command `$command` not allowed", 403)
-            unless __allowed($env->{"ss.request"}{command},
-                             $self->allowable_commands);
+            unless allowed($env->{"ss.request"}{command},
+                           $self->allowable_commands);
 
         if ($uri) {
             my $module = $uri->module;
             if ($module) {
                 return errpage("Module `$module` not allowed", 403)
-                    unless __allowed($module, $self->allowable_modules);
+                    unless allowed($module, $self->allowable_modules);
             }
         }
     }

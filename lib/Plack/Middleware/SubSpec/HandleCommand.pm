@@ -1,4 +1,4 @@
-package Plack::Middleware::SubSpec::Command;
+package Plack::Middleware::SubSpec::HandleCommand;
 
 use 5.010;
 use strict;
@@ -11,8 +11,10 @@ use Plack::Util::Accessor qw(
                                 time_limit
                         );
 
+use Data::Rmap;
 use Log::Any::Adapter;
-use Plack::Util::SubSpec qw(errpage);
+use Plack::Util::SubSpec qw(errpage allowed str_log_level);
+use Scalar::Util qw(blessed);
 use Time::HiRes qw(gettimeofday);
 
 # VERSION
@@ -59,24 +61,50 @@ sub format_html {
             "text/html");
 }
 
+sub postprocess_result {
+    my ($self, $res) = @_;
+
+    Data::Rmap::rmap_ref(
+        sub {
+            # trick to defeat circular-checking, so in case
+            # of [$dt, $dt], both will be converted
+            #$_[0]{seen} = {};
+
+            return unless blessed($_);
+
+            # convert DateTime objects to epoch
+            if (UNIVERSAL::isa($_, "DateTime")) {
+                $_ = $_->epoch;
+                return;
+            }
+
+            # stringify objects
+            $_ = "$_";
+       }, $res
+    );
+    $res;
+}
+
 sub call {
     my ($self, $env) = @_;
-
-    use Data::Dump; dd($self);
-    my $mycmd = ref($self); $mycmd =~ s/.+:://;
-    return $self->app->($env) unless
-        $env->{'ss.request.opts'}{command} eq $mycmd;
 
     die "This middleware needs psgi.streaming support"
         unless $env->{'psgi.streaming'};
 
-    my $opts = $env->{'ss.request.opts'};
-    my $ofmt = $opts->{output_format} // $self->default_output_format
+    my $ssreq = $env->{"ss.request"};
+    my $cmd = $ssreq->{command};
+    return errpage("Command not specified") unless $cmd;
+    return errpage("Invalid command syntax") unless $cmd =~ /\A\w+\z/;
+
+    eval { require "Sub/Spec/HTTP/Server/Command/$cmd.pm" };
+    return errpage("Can't get command handler for command `$cmd`: $@") if $@;
+
+    my $ofmt = $ssreq->{output_format} // $self->default_output_format
         // $self->_pick_default_format($env);
     return errpage("Unknown output format: $ofmt")
         unless $ofmt =~ /^\w+/ && $self->can("format_$ofmt");
     return errpage("Output format $ofmt not allowed")
-        unless grep {$_ eq $ofmt} @{$self->allowable_output_formats};
+        unless allowed($ofmt, $self->allowable_output_formats);
 
     return sub {
         my $respond = shift;
@@ -93,7 +121,8 @@ sub call {
                 local $SIG{ALRM} = sub { die "Timed out\n" };
                 alarm $time_limit;
                 $env->{'ss.start_command_time'} = [gettimeofday];
-                $cmd_res = $self->exec_command($env);
+                my $code = \&{"Sub::Spec::HTTP::Server::Command::handle_".$cmd};
+                $cmd_res = $code->($env);
                 $env->{'ss.finish_command_time'} = [gettimeofday];
             };
             alarm 0;
@@ -104,14 +133,10 @@ sub call {
         };
 
         my $writer;
-        my $loglvl  = $opts->{'log_level'};
-        my $marklog = $opts->{'mark_log'};
+        my $loglvl  = str_log_level($ssreq->{'log_level'});
+        my $marklog = $ssreq->{'mark_log'};
         my $cmd_res;
         if ($loglvl) {
-            unless ($loglvl =~ /\A(?:fatal|error|warn|info|debug|trace)\z/i) {
-                $respond->(errpage("Unknown log level"));
-                return;
-            }
             $writer = $respond->([200, ["Content-Type" => "text/plain"]]);
             Log::Any::Adapter->set(
                 {lexically=>\my $lex},
@@ -137,7 +162,8 @@ sub call {
                 $cmd_res->[0] == int($cmd_res->[0]) &&
                     $cmd_res->[0] >= 100 && $cmd_res->[0] <= 599;
 
-        $env->{'ss.command_executed'} = 1;
+        $self->postprocess_result($cmd_res);
+
         $env->{'ss.response'} = $cmd_res;
 
         my $fmt_method = "format_$ofmt";
@@ -153,7 +179,7 @@ sub call {
 }
 
 1;
-# ABSTRACT: Base class for command handler
+# ABSTRACT: Handle command
 
 =head1 SYNOPSIS
 
@@ -167,8 +193,9 @@ sub call {
 
 =head1 DESCRIPTION
 
-This module is a base class for command handlers
-(Plack::Middleware::SubSpec::Command::* middlewares).
+This module executes command specified in $env->{"ss.request"}{command} by
+calling handle_<cmdname>() in Sub::Spec::HTTP::Server::Command::<cmdname>. The
+result is then put in $env->{"ss.request"}{response}.
 
 
 =head1 CONFIGURATIONS
@@ -183,7 +210,7 @@ key.
 If unspecified, some detection logic will be done to determine default format:
 if client is a GUI browser, 'html'; otherwise, 'json'.
 
-=item * allowable_output_formats => ARRAY (default [qw/html json phps yaml/])
+=item * allowable_output_formats => ARRAY|REGEX (default [qw/html json phps yaml/])
 
 Specify what output formats are allowed. When client requests an unallowed
 format, 400 error is returned.
