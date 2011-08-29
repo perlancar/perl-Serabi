@@ -184,27 +184,28 @@ sub call {
 
     # create Sub::Spec::URI object, needed for getting spec
     my $uri = $env->{"ss.request"}{uri};
+    my $ssu;
     if ($uri) {
         my ($scheme) = $uri =~ m!^[^:]+:!;
         errpage("Invalid SS request URI: no scheme") unless $scheme;
         errpage("SS request URI scheme `$scheme` not allowed", 403)
             unless allowed($scheme, $self->allowable_uri_schemes);
-        eval { $uri = Sub::Spec::URI->new($uri) };
+        eval { $ssu = Sub::Spec::URI->new($uri) };
         return errpage("Invalid SS request URI `$uri`: $@") if $@;
-        $env->{"ss.request"}{uri} = $uri;
+        $env->{"ss.request"}{uri} = $ssu;
     }
 
     # get ss request key from path info (optional)
     {
         last unless $self->parse_args_from_path_info;
-        last unless $uri;
+        last unless $ssu;
         $req_uri =~ s/\?.*//;
         $req_uri =~ s!^/!!;
         last unless $req_uri;
 
         my $spec;
-        eval { $spec = $uri->spec };
-        return errpage("Can't get sub spec from $uri->{_uri}: $@")
+        eval { $spec = $ssu->spec };
+        return errpage("Can't get sub spec from $ssu->{_uri}: $@")
             if $@ || !$spec;
 
         my @argv = map {uri_unescape($_)} split m!/!, $req_uri;
@@ -231,8 +232,8 @@ sub call {
             unless allowed($env->{"ss.request"}{command},
                            $self->allowable_commands);
 
-        if ($uri) {
-            my $module = $uri->module;
+        if ($ssu) {
+            my $module = $ssu->module;
             if ($module) {
                 return errpage("Module `$module` not allowed", 403)
                     unless allowed($module, $self->allowable_modules);

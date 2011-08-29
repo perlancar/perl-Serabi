@@ -8,18 +8,18 @@ use warnings;
 
 sub handle_call {
     my ($env) = @_;
-    my $uri = $env->{"ss.request"}{uri};
-    return [400, "SS request URI not specified"] unless $uri;
+    my $ssu = $env->{"ss.request"}{uri};
+    return [400, "SS request URI not specified"] unless $ssu;
 
     my $res;
-    eval { $res = $uri->call(%{$env->{"ss.request"}{args}}) };
+    eval { $res = $ssu->call(%{$env->{"ss.request"}{args}}) };
     my $eval_err = $@;
 
     # sometimes when a sub which drops privileges dies, it has not regained
     # privileges.
     if ($< == 0 && $>) { $> = 0; $) = $( }
 
-    return [500, "Exception when calling $uri->{_uri}: $@"] if $@;
+    return [500, "Exception when calling $ssu->{_uri}: $@"] if $@;
 }
 
 1;
