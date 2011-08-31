@@ -70,7 +70,7 @@ sub call {
 
     # get SS request keys from HTTP headers (required by spec)
     for my $k0 (keys %$env) {
-        next unless $k0 =~ /^HTTP_X_SS_REQ_(.+)(_J_?)$/;
+        next unless $k0 =~ /^HTTP_X_SS_REQ_(.+)(_J_)?$/;
         my $v = $env->{$k0};
         my ($k, $encj) = (lc($1), $2);
         if ($k ~~ @known_ss_req_keys) {
@@ -241,6 +241,8 @@ sub call {
             }
         }
     }
+
+    #use Data::Dump qw(dump); warn dump($env->{"ss.request"});
 
     # continue to app
     $self->app->($env);
