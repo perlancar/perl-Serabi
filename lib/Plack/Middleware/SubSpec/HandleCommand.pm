@@ -15,7 +15,7 @@ use Data::Rmap;
 use Log::Any::Adapter;
 use Plack::Util::SubSpec qw(errpage allowed);
 use Scalar::Util qw(blessed);
-use Sub::Spec::Utils qw(str_log_level);
+use Sub::Spec::Util qw(str_log_level);
 use Time::HiRes qw(gettimeofday);
 
 # VERSION
