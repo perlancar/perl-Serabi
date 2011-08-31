@@ -109,7 +109,8 @@ sub log_access {
     my $reqt;
     if ($env->{'gepok.connect_time'}) {
         $reqt = sprintf("%.3fms",
-                        1000*tv_interval($env->{'gepok.connect_time'}, $now));
+                        1000*tv_interval($env->{'gepok.start_request_time'},
+                                         $now));
     } else {
         $reqt = "-";
     }
