@@ -39,7 +39,8 @@ sub prepare_app {
 
     $self->{uri_pattern} //= qr/.?/;
 
-    $self->{allowable_commands}    //= [qw/call help spec list_mods list_subs/];
+    $self->{allowable_commands}    //= [qw/about call spec
+                                           list_mods list_subs usage/];
     $self->{allowable_modules}     //= [];
     $self->{allowable_uri_schemes} //= ['pm'];
 
