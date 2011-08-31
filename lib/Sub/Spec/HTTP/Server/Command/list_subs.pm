@@ -1,51 +1,30 @@
-package Plack::Middleware::SubSpec::Command::listsub;
+package Sub::Spec::HTTP::Server::Command;
 
 use 5.010;
 use strict;
 use warnings;
 
-use parent qw(Plack::Middleware);
-#use Plack::Util::Accessor qw();
-
-use Plack::Util::SubSpec qw(errpage);
-
 # VERSION
 
-sub prepare_app {
-    my $self = shift;
-    die "Not yet implemented";
-}
+sub handle_list_subs {
+    my ($env) = @_;
+    my $ssu = $env->{"ss.request"}{uri};
+    return [400, "SS request URI not specified"] unless $ssu;
 
-sub call {
-    my ($self, $env) = @_;
-
-    # continue to app
-    $self->app->($env);
+    $ssu->list_subs();
 }
 
 1;
-# ABSTRACT: List available functions in a module
-__END__
+# ABSTRACT: List subroutines in a module
 
 =head1 SYNOPSIS
 
- # In app.psgi
- use Plack::Builder;
-
- builder {
-    enable "SubSpec::Command::listsub";
- };
+ # used by Plack::Middleware::SubSpec::HandleCommand
 
 
 =head1 DESCRIPTION
 
-This middleware executes 'listsub' command.
-
-
-=head1 CONFIGURATION
-
-=over 4
-
-=back
+This module returns list of subroutines within a module. Will return 400 error
+if module is not specified in URI.
 
 =cut

@@ -1,51 +1,33 @@
-package Plack::Middleware::SubSpec::Command::help;
+package Sub::Spec::HTTP::Server::Command;
 
 use 5.010;
 use strict;
 use warnings;
 
-use parent qw(Plack::Middleware);
-#use Plack::Util::Accessor qw();
-
-use Plack::Util::SubSpec qw(errpage);
+use Sub::Spec::To::Text::Usage qw(spec_to_usage);
 
 # VERSION
 
-#sub prepare_app {
-#    my $self = shift;
-#    die "Not yet implemented";
-#}
+sub handle_usage {
+    my ($env) = @_;
+    my $ssu = $env->{"ss.request"}{uri};
+    return [400, "SS request URI not specified"] unless $ssu;
 
-sub call {
-    my ($self, $env) = @_;
-
-    # continue to app
-    $self->app->($env);
+    my $spec = $ssu->spec();
+    spec_to_usage(spec => $spec);
 }
 
 1;
-# ABSTRACT: Show a subroutine's usage information
-__END__
+# ABSTRACT: Return function usage information
 
 =head1 SYNOPSIS
 
- # In app.psgi
- use Plack::Builder;
-
- builder {
-    enable "SubSpec::Command::help";
- };
+ # used by Plack::Middleware::SubSpec::HandleCommand
 
 
 =head1 DESCRIPTION
 
-This middleware executes the 'help' command.
-
-
-=head1 CONFIGURATION
-
-=over 4
-
-=back
+This module returns subroutine's spec. Will return 400 error if module or sub is
+not specified in URI.
 
 =cut
