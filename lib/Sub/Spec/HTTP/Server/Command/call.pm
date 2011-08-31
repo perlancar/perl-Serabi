@@ -15,10 +15,6 @@ sub handle_call {
     eval { $res = $ssu->call(%{$env->{"ss.request"}{args}}) };
     my $eval_err = $@;
 
-    # sometimes when a sub which drops privileges dies, it has not regained
-    # privileges.
-    if ($< == 0 && $>) { $> = 0; $) = $( }
-
     return [500, "Exception when calling $ssu->{_uri}: $@"] if $@;
 }
 
