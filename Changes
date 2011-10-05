@@ -12,14 +12,17 @@ Revision history for Sub::Spec::HTTP::Server
 
          [INCOMPATIBLE CHANGES]
 
-         - To set request options via HTTP header, now use 'X-SS-Opt-xxxxx'
+         - To set SS request variables via HTTP header, now use 'X-SS-Req-xxxxx'
            instead of 'X-SS-xxxxx'.
 
          - Output format 'php' becomes 'phps'.
 
          [ENHANCEMENTS]
 
-         - Implement 'about'  command.
+         - To set SS request variables via HTTP form variables, use
+           '-ss-req-XXXXX'.
+
+         - Implement 'about' command.
 
          - Implement 'list_subs' command.
 
