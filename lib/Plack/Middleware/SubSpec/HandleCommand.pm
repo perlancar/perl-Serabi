@@ -35,28 +35,33 @@ sub _pick_default_format {
 }
 
 sub format_json {
-    my ($self, $sub_res) = @_;
+    my ($self, $sub_res, $env) = @_;
     require Data::Format::Pretty::JSON;
-    return (Data::Format::Pretty::JSON::format_pretty($sub_res, {pretty=>0}),
-            "application/json");
+    my $json = Data::Format::Pretty::JSON::format_pretty($sub_res, {pretty=>0});
+    return (
+        defined($env->{_jsonp_callback}) ?
+            "$env->{_jsonp_callback}($json)" :
+                $json,
+        "application/json"
+    );
 }
 
 sub format_yaml {
-    my ($self, $sub_res) = @_;
+    my ($self, $sub_res, $env) = @_;
     require Data::Format::Pretty::YAML;
     return (Data::Format::Pretty::YAML::format_pretty($sub_res),
             "text/yaml");
 }
 
 sub format_phps {
-    my ($self, $sub_res) = @_;
+    my ($self, $sub_res, $env) = @_;
     require Data::Format::Pretty::PHPSerialization;
     return (Data::Format::Pretty::PHP::format_pretty($sub_res),
             "application/vnd.php.serialized");
 }
 
 sub format_html {
-    my ($self, $sub_res) = @_;
+    my ($self, $sub_res, $env) = @_;
     require Data::Format::Pretty::HTML;
     return (Data::Format::Pretty::HTML::format_pretty($sub_res),
             "text/html");
@@ -168,7 +173,7 @@ sub call {
         $env->{'ss.response'} = $cmd_res;
 
         my $fmt_method = "format_$ofmt";
-        my ($res, $ct) = $self->$fmt_method($cmd_res);
+        my ($res, $ct) = $self->$fmt_method($cmd_res, $env);
 
         if ($writer) {
             $writer->write($marklog ? "R$res" : $res);

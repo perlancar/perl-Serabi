@@ -85,6 +85,7 @@ sub call {
 
     my $req = Plack::Request->new($env);
 
+    my $fmt;
     # get/complete SS request key 'args' from request body headers (required by
     # spec) parse module & sub into uri
     {
@@ -103,6 +104,7 @@ sub call {
             eval { $args = $json->decode($body) };
             return errpage("Invalid JSON in request body: $@")
                 if $@;
+            $fmt = 'json';
         } elsif ($ct eq 'application/vnd.php.serialized') {
             #$log->trace('Request body is PHP serialized');
             return errpage("PHP serialized data unacceptable")
@@ -111,6 +113,7 @@ sub call {
             eval { $args = PHP::Serialization::unserialize($body) };
             return errpage("Invalid PHP serialized data in request body: ".
                                "$@") if $@;
+            $fmt = 'phps';
         } elsif ($ct eq 'text/yaml') {
             #$log->trace('Request body is YAML');
             return errpage("YAML data unacceptable")
@@ -118,17 +121,29 @@ sub call {
             require YAML::Syck;
             eval { $args = YAML::Load($body) };
             return errpage("Invalid YAML in request body: $@")
-            if $@;
+                if $@;
+            $fmt = 'yaml';
         }
         return errpage("Arguments must be hash (associative array)")
             unless ref($args) eq 'HASH';
         $env->{"ss.request"}{args}{$_} //= $args->{$_}
             for keys %$args;
     }
+    $fmt //= 'json';
 
     # get ss request key from web form variables (optional)
     if ($self->parse_args_from_web_form) {
         my $form = $req->parameters;
+
+        # special name 'callback' is for jsonp
+        if ($fmt eq 'json' && defined($form->{callback})) {
+            return errpage("Invalid callback syntax, please use ".
+                               "a valid JS identifier")
+                unless $form->{callback} =~ /\A[A-Za-z_]\w*\z/;
+            $env->{_jsonp_callback} = $form->{callback};
+            delete $form->{callback};
+        }
+
         while (my ($k, $v) = each %$form) {
             if ($k =~ /(.+):j$/) {
                 $k = $1;
@@ -171,7 +186,7 @@ sub call {
         my $m = $env->{"ss.uri_pattern_matches"};
         for (keys %$m) {
             next unless $_ ~~ @known_ss_req_keys;
-            $env->{"ss.request"}{$_} //= $m->{$_}
+            $env->{"ss.request"}{$_} //= $m->{$_};
         }
         if ($m->{module}) {
             $m->{module} =~ s/\W+/::/g;
@@ -309,6 +324,10 @@ suffix means value is JSON-encoded; ":y" and ":p" are also accepted if the
 C<accept_yaml> and C<accept_phps> configurations are enabled). In addition,
 request variables C<-ss-req-*> are also accepted for setting other SS request
 keys. Unknown SS request key or encoding suffix will result in 400 error.
+
+If request format is JSON and web form variable C<callback> is defined, then it
+is assumed to specify callback for JSONP instead part of C<args>.
+"callback(json)" will be returned instead of just "json".
 
 C<From URI (2)>. If C<parse_args_from_path_info> configuration is enabled, and
 C<uri> SS request key contains module and subroutine name (so spec can be
