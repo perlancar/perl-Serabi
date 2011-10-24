@@ -252,7 +252,7 @@ sub call {
         if ($ssu) {
             my $module = $ssu->module;
             if ($module) {
-                return errpage("Module `$module` not allowed"), 403)
+                return errpage("Module `$module` not allowed", 403)
                     unless allowed($module, $self->allowed_modules);
             }
         }
