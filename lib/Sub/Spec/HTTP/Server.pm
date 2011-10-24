@@ -38,16 +38,11 @@ First, write C<app.psgi>:
  #!perl
  use Plack::Builder;
  use Plack::Util::SubSpec qw(errpage);
- use Sub::Spec::HTTP::Server::Command::about;
- use Sub::Spec::HTTP::Server::Command::call;
- use Sub::Spec::HTTP::Server::Command::list_mods;
- use Sub::Spec::HTTP::Server::Command::list_subs;
- use Sub::Spec::HTTP::Server::Command::spec;
- use Sub::Spec::HTTP::Server::Command::usage;
 
  builder {
      # this is the basic composition
-     enable "SubSpec::LogAccess";
+     enable "SubSpec::LogAccess",
+         log_path => "...";
      enable "SubSpec::ParseRequest",
          uri_pattern => qr!^/api
                            (?:/(?<module>[^?]+)
@@ -135,7 +130,7 @@ See the L<servepm> script included in this distribution.
 Well, isn't exposing functions the whole point of API?
 
 If you have modules that you do not want to expose as API, simply exclude it
-(e.g. using C<allowable_modules> configuration in SubSpec::ParseRequest
+(e.g. using C<allowed_modules> configuration in SubSpec::ParseRequest
 middleware. Or, create a set of wrapper modules to expose only the
 functionalities that you want to expose.
 
@@ -183,7 +178,7 @@ Plack/Middleware/SubSpec/HandleCommand.pm file itself. You can inject the method
 from another file.
 
 Also make sure that the output format is allowed (see configuration
-C<allowable_output_formats> in the command handler middleware).
+C<allowed_output_formats> in the command handler middleware).
 
 =head1 I need custom URI syntax
 
@@ -218,7 +213,7 @@ authentication and before command handling.
 =head2 I want to support new commands.
 
 Write Sub::Spec::HTTP::Server::Command::<cmdname>, and include the command in
-SubSpec::ParseRequest's C<allowable_commands> configuration.
+SubSpec::ParseRequest's C<allowed_commands> configuration.
 
 But first consider if that is really what you want. If you want to serve static
 files or do stuffs unrelated to calling subroutines or subroutine spec, you

@@ -5,12 +5,13 @@ use strict;
 use warnings;
 
 use parent qw(Plack::Middleware);
+use Plack::Request;
 use Plack::Util::Accessor qw(
                                 uri_pattern
 
-                                allowable_uri_schemes
-                                allowable_commands
-                                allowable_modules
+                                allowed_uri_schemes
+                                allowed_commands
+                                allowed_modules
 
                                 parse_args_from_web_form
                                 parse_args_from_path_info
@@ -39,10 +40,10 @@ sub prepare_app {
 
     $self->{uri_pattern} //= qr/.?/;
 
-    $self->{allowable_commands}    //= [qw/about call spec
+    $self->{allowed_commands}    //= [qw/about call spec
                                            list_mods list_subs usage/];
-    $self->{allowable_modules}     //= [];
-    $self->{allowable_uri_schemes} //= ['pm'];
+    $self->{allowed_modules}     //= [];
+    $self->{allowed_uri_schemes} //= ['pm'];
 
     $self->{parse_args_from_web_form}  //= 1;
     $self->{parse_args_from_path_info} //= 1;
@@ -205,7 +206,7 @@ sub call {
         my ($scheme) = $uri =~ m!^[^:]+:!;
         errpage("Invalid SS request URI: no scheme") unless $scheme;
         errpage("SS request URI scheme `$scheme` not allowed", 403)
-            unless allowed($scheme, $self->allowable_uri_schemes);
+            unless allowed($scheme, $self->allowed_uri_schemes);
         eval { $ssu = Sub::Spec::URI->new($uri) };
         return errpage("Invalid SS request URI `$uri`: $@") if $@;
         $env->{"ss.request"}{uri} = $ssu;
@@ -246,13 +247,13 @@ sub call {
         my $command = $env->{"ss.request"}{command};
         return errpage("Command `$command` not allowed", 403)
             unless allowed($env->{"ss.request"}{command},
-                           $self->allowable_commands);
+                           $self->allowed_commands);
 
         if ($ssu) {
             my $module = $ssu->module;
             if ($module) {
-                return errpage("Module `$module` not allowed", 403)
-                    unless allowed($module, $self->allowable_modules);
+                return errpage("Module `$module` not allowed"), 403)
+                    unless allowed($module, $self->allowed_modules);
             }
         }
     }
@@ -274,7 +275,7 @@ sub call {
  builder {
      enable "SubSpec::ParseRequest",
          uri_pattern => m!^/api/v1/(?<module>[^?]+)?/?(?<sub>[^?/]+)?!,
-         allowable_modules => qr/^My::API/;
+         allowed_modules => qr/^My::API/;
  };
 
 
@@ -353,18 +354,18 @@ C<uri> is not already specified.
 
 If regexp doesn't match, a 400 error response will be generated.
 
-=item * allowable_uri_schemes => ARRAY|REGEX (default ['pm'])
+=item * allowed_uri_schemes => ARRAY|REGEX (default ['pm'])
 
 Which URI schemes are allowed. If SS request's C<uri> has a scheme not on this
 list, a HTTP 403 error will be returned.
 
-=item * allowable_commands => ARRAY|REGEX (default [qw/about call help list_mods list_subs spec usage/])
+=item * allowed_commands => ARRAY|REGEX (default [qw/about call help list_mods list_subs spec usage/])
 
 Which commands to allow. Default is all commands. If you want to disable certain
 commands, exclude it from the list. In principle the most important command is
 'call', while the others are just helpers.
 
-=item * allowable_modules => ARRAY|REGEX (default [])
+=item * allowed_modules => ARRAY|REGEX (default [])
 
 Which modules to allow. Needs to be set.
 

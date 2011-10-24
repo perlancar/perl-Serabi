@@ -7,7 +7,7 @@ use warnings;
 use parent qw(Plack::Middleware);
 use Plack::Util::Accessor qw(
                                 default_output_format
-                                allowable_output_formats
+                                allowed_output_formats
                                 time_limit
                         );
 
@@ -22,7 +22,7 @@ use Time::HiRes qw(gettimeofday);
 
 sub prepare_app {
     my $self = shift;
-    $self->{allowable_output_formats} //= [qw/html json phps yaml/];
+    $self->{allowed_output_formats} //= [qw/html json phps yaml/];
 }
 
 sub _pick_default_format {
@@ -110,7 +110,7 @@ sub call {
     return errpage("Unknown output format: $ofmt")
         unless $ofmt =~ /^\w+/ && $self->can("format_$ofmt");
     return errpage("Output format $ofmt not allowed")
-        unless allowed($ofmt, $self->allowable_output_formats);
+        unless allowed($ofmt, $self->allowed_output_formats);
 
     return sub {
         my $respond = shift;
@@ -216,7 +216,7 @@ key.
 If unspecified, some detection logic will be done to determine default format:
 if client is a GUI browser, 'html'; otherwise, 'json'.
 
-=item * allowable_output_formats => ARRAY|REGEX (default [qw/html json phps yaml/])
+=item * allowed_output_formats => ARRAY|REGEX (default [qw/html json phps yaml/])
 
 Specify what output formats are allowed. When client requests an unallowed
 format, 400 error is returned.
