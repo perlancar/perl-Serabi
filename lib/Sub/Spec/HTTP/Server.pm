@@ -33,6 +33,8 @@ http://<host>/api/<module>/<func>:
  sub add { my %args=@_; [200, "OK", [@{$args{a1}}, @{$args{a2}}]] }
  1;
 
+ # or just write any normal Perl module without any specs
+
 Then:
 
  $ servepm My::API::Adder My::API::Adder::Array
@@ -107,7 +109,8 @@ or perhaps (if you only have one module to expose):
  http://localhost:5000/func
 
 You can do this by customizing uri_pattern when enabling SubSpec::ParseRequest
-middleware (see servepm source code).
+middleware (see servepm source code). You just need to make sure that you
+produce $env->{"ss.request"}{uri} (and other necessary SS request keys).
 
 =head1 I want to let user specify output format from URI (e.g. /api/json/... or /api/v1/yaml/...)
 
