@@ -37,15 +37,15 @@ First, write C<app.psgi>:
 
  #!perl
  use Plack::Builder;
- use Plack::Util::SubSpec qw(errpage)
+ use Plack::Util::SubSpec qw(errpage);
  use Sub::Spec::HTTP::Server::Command qw(
-     about call help listmod listsub usage);
+     about call list_mods list_subs spec usage);
 
  builder {
      # this is the basic composition
      enable "SubSpec::LogAccess";
      enable "SubSpec::ParseRequest"
-         uri_pattern => qr!^/api/v1
+         uri_pattern => qr!^/api
                            (?:/(?<module>[^?]+)
                              (?:/(?<sub>[^?/]+)?)
                            )?!x,
