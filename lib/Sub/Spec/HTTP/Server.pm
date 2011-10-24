@@ -38,8 +38,12 @@ First, write C<app.psgi>:
  #!perl
  use Plack::Builder;
  use Plack::Util::SubSpec qw(errpage);
- use Sub::Spec::HTTP::Server::Command qw(
-     about call list_mods list_subs spec usage);
+ use Sub::Spec::HTTP::Server::Command::about;
+ use Sub::Spec::HTTP::Server::Command::call;
+ use Sub::Spec::HTTP::Server::Command::list_mods;
+ use Sub::Spec::HTTP::Server::Command::list_subs;
+ use Sub::Spec::HTTP::Server::Command::spec;
+ use Sub::Spec::HTTP::Server::Command::usage;
 
  builder {
      # this is the basic composition
