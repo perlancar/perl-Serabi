@@ -48,7 +48,7 @@ First, write C<app.psgi>:
  builder {
      # this is the basic composition
      enable "SubSpec::LogAccess";
-     enable "SubSpec::ParseRequest"
+     enable "SubSpec::ParseRequest",
          uri_pattern => qr!^/api
                            (?:/(?<module>[^?]+)
                              (?:/(?<sub>[^?/]+)?)
