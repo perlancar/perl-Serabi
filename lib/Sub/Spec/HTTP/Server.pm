@@ -14,7 +14,7 @@ __END__
 
 Suppose you want to expose functions in C<My::API::Adder> and
 C<My::API::Adder::Array> as HTTP API functions, using URL
-http://<host>/api/v1/<module>/<func>:
+http://<host>/api/<module>/<func>:
 
  package My::API::Adder;
  our %SPEC;
@@ -69,17 +69,17 @@ Run the app with PSGI server, e.g. Gepok:
 
 Call your functions over HTTP(S)?:
 
- % curl http://localhost:5000/api/v1/Adder/add/2/3
+ % curl http://localhost:5000/api/Adder/add/2/3
  [200,"OK",6]
 
  % curl -H 'X-SS-Req-Log-Level: trace' \
-   'https://localhost:5001/api/v1/Adder/Array/add?a1:j=[1]&a2:j=[2,3]'
+   'https://localhost:5001/api/Adder/Array/add?a1:j=[1]&a2:j=[2,3]'
  [200,"OK",[1,2,3]]
 
 Request help/usage information:
 
  % curl -H 'X-SS-Req-Command: help' \
-   'http://localhost:5000/api/v1/Adder/Array/add'
+   'http://localhost:5000/api/Adder/Array/add'
  My::API::Adder::Array::add - Concatenate two arrays together
 
  Arguments:
@@ -89,13 +89,13 @@ Request help/usage information:
 List available function in a module (request key 'command' given in request
 variable):
 
- % curl 'http://localhost:5000/api/v1/Adder/Array?-ss-req-command=list_subs'
+ % curl 'http://localhost:5000/api/Adder/Array?-ss-req-command=list_subs'
  ['add_array']
 
 List available modules:
 
  % curl -H 'X-SS-Req-Command: list_mods' \
-   'http://localhost:5000/api/v1/'
+   'http://localhost:5000/api/'
  ['Adder','Adder::Array']
 
 
@@ -122,6 +122,10 @@ This module uses L<Moo> for object system.
 
 =head1 FAQ
 
+=head2 How can I get started quickly?
+
+See the L<servepm> script included in this distribution.
+
 =head2 I don't want to expose my subroutines and module structure!
 
 Well, isn't exposing functions the whole point of API?
@@ -136,14 +140,14 @@ functionalities that you want to expose.
 You can do something like this:
 
  enable "SubSpec::ParseRequest"
-     uri_pattern => qr!^/api/v1/(?<sub>[^?/]+)?!,
+     uri_pattern => qr!^/api/(?<sub>[^?/]+)?!,
      after_parse => sub {
          my $env = shift;
          $env->{"ss.request"}{uri} = "pm:Foo/".
              $env->{"ss.uri_pattern_matches"}{sub};
      };
 
-=head1 I want to let user specify output format from URI (e.g. /api/v1/json/... or /api/v1/yaml/...)
+=head1 I want to let user specify output format from URI (e.g. /api/json/... or /api/v1/yaml/...)
 
 You can do something like:
 
