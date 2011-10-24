@@ -203,7 +203,7 @@ sub call {
     my $uri = $env->{"ss.request"}{uri};
     my $ssu;
     if ($uri) {
-        my ($scheme) = $uri =~ m!^[^:]+:!;
+        my ($scheme) = $uri =~ m!^(\w+):!;
         return errpage("Invalid SS request URI: no scheme") unless $scheme;
         return errpage("SS request URI scheme `$scheme` not allowed", 403)
             unless allowed($scheme, $self->allowed_uri_schemes);
