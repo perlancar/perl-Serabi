@@ -3,6 +3,7 @@ package Plack::Util::SubSpec;
 use 5.010;
 use strict;
 use warnings;
+use Log::Any '$log';
 
 our @ISA = qw(Exporter);
 our @EXPORT_OK = qw(errpage allowed);
@@ -14,6 +15,7 @@ sub errpage {
     $msg .= "\n" unless $msg =~ /\n\z/;
     $code //= 400;
     $msg = "$code - $msg";
+    $log->tracef("Sending errpage %s - %s", $code, $msg);
     [$code,
      ["Content-Type" => "text/plain", "Content-Length" => length($msg)],
      [$msg]];

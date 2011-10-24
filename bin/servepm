@@ -64,19 +64,38 @@ _
 Default is ~/servepm-ss_access.log
 _
         }],
-        http_ports => ['str' => {
+        server => ['array*' => {
+            summary => 'Choose PSGI server',
+            arg_aliases => {
+                s => {},
+            },
+            description => <<'_',
+
+Currently only Starman or Gepok is supported. Default is Gepok.
+
+_
+            in => [qw/Starman Gepok/],
+            default => 'Gepok',
+        }],
+        starman_host => ['str' => {
+            summary => 'Will be passed to Starman',
+        }],
+        starman_port => ['int' => {
+            summary => 'Will be passed to Starman',
+        }],
+        gepok_http_ports => ['str' => {
             summary => 'Will be passed to Gepok',
         }],
-        https_ports => ['str' => {
+        gepok_https_ports => ['str' => {
             summary => 'Will be passed to Gepok',
         }],
-        unix_sockets => ['str' => {
+        gepok_unix_sockets => ['str' => {
             summary => 'Will be passed to Gepok',
         }],
-        ssl_key_file => ['str' => {
+        gepok_ssl_key_file => ['str' => {
             summary => 'Will be passed to Gepok',
         }],
-        ssl_cert_file => ['str' => {
+        gepok_ssl_cert_file => ['str' => {
             summary => 'Will be passed to Gepok',
         }],
         daemonize => ['bool' => {
@@ -91,7 +110,10 @@ _
 sub serve {
     my %args = @_;
 
-    $log->infof("Initializing ...");
+    my $server = $args{server} // "Gepok";
+    $server =~ /\A(Gepok|Starman)\z/ or $server = "Gepok";
+
+    $log->infof("Starting server (using %s) ...", $server);
 
     my $ss_access_log_path = $args{ss_access_log_path} //
         "$ENV{HOME}/servepm-ss_access.log";
@@ -168,12 +190,21 @@ sub serve {
         };
 
     my @argv;
-    push @argv, "-s", "Gepok";
-    if (!$args{http_ports} && !$args{https_ports} && !$args{unix_sockets}) {
-        $args{http_ports} = "*:5000";
-    }
-    for (qw/http_port https_ports unix_sockets ssl_key_file ssl_cert_file/) {
-        push @argv, "--$_", $args{$_} if $args{$_};
+    push @argv, "-s", $server;
+    if ($server eq 'Starman') {
+        for (qw/host port/) {
+            push @argv, "--$_", $args{"starman_$_"} if $args{"starman_$_"};
+        }
+    } else {
+        if (!$args{gepok_http_ports} &&
+                !$args{gepok_https_ports} &&
+                    !$args{gepok_unix_sockets}) {
+            $args{gepok_http_ports} = "*:5000";
+        }
+        for (qw/http_port https_ports unix_sockets
+                ssl_key_file ssl_cert_file/) {
+            push @argv, "--$_", $args{"gepok_$_"} if $args{"gepok_$_"};
+        }
     }
     push @argv, "-D" if $args{daemonize};
     my $runner = Plack::Runner->new;
@@ -235,9 +266,7 @@ Notice the ":j" suffix after parameter name.
 
 * Pass more plackup options.
 
-* Pass more Gepok options.
-
-* Allow other servers than Gepok?
+* Pass more server options.
 
 
 =head1 SEE ALSO
