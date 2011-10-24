@@ -161,7 +161,10 @@ If you have modules that you do not want to expose as API, simply exclude it
 middleware. Or, create a set of wrapper modules to expose only the
 functionalities that you want to expose.
 
-=head1 I want to support another output format (e.g. XML, MessagePack, etc).
+Or, if you have a custom mapping of "modules" and "subs" that are different than
+Perl's, I recommend you create a new Sub::Spec::URI::xxx implementation.
+
+=head2 I want to support another output format (e.g. XML, MessagePack, etc).
 
 Add a format_<fmtname> method to L<Plack::Middleware::SubSpec::HandleCommand>.
 The method accepts sub response and is expected to return a tuplet ($output,
