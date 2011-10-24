@@ -204,8 +204,8 @@ sub call {
     my $ssu;
     if ($uri) {
         my ($scheme) = $uri =~ m!^[^:]+:!;
-        errpage("Invalid SS request URI: no scheme") unless $scheme;
-        errpage("SS request URI scheme `$scheme` not allowed", 403)
+        return errpage("Invalid SS request URI: no scheme") unless $scheme;
+        return errpage("SS request URI scheme `$scheme` not allowed", 403)
             unless allowed($scheme, $self->allowed_uri_schemes);
         eval { $ssu = Sub::Spec::URI->new($uri) };
         return errpage("Invalid SS request URI `$uri`: $@") if $@;
