@@ -144,6 +144,7 @@ sub serve {
                 sub {
                     my $env     = shift;
                     my $ssreq   = $env->{"ss.request"};
+                    $log->tracef("SS request: %s", $ssreq);
                     my $command = $ssreq->{command};
                     my $uri     = $ssreq->{uri};
                     if ($uri->proto eq 'pm' && $command =~ /^(call|spec)$/) {
