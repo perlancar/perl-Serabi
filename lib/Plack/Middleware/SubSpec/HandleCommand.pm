@@ -147,6 +147,7 @@ sub call {
             Log::Any::Adapter->set(
                 {lexically=>\my $lex},
                 "Callback",
+                min_level => $loglvl,
                 logging_cb => sub {
                     my ($method, $self, $format, @params) = @_;
                     my $msg = join(
