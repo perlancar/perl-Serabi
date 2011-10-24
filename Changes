@@ -1,5 +1,12 @@
 Revision history for Sub-Spec-HTTP-Server
 
+0.10     2011-10-24
+
+         [ENHANCEMENTS]
+
+         - serverpm: Support Starman.
+
+
 0.09     2011-10-24
 
          [ENHANCEMENTS]
