@@ -150,7 +150,7 @@ sub serve {
                                   )?!x,
                 allowed_modules => \@modules,
                 after_parse => sub {
-                    my $env = shift;
+                    my ($self, $env) = @_;
                     my $m = $env->{"ss.uri_pattern_matches"};
                     my $mod = $m->{module};
                     if ($mod) {

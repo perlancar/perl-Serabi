@@ -10,6 +10,7 @@ sub handle_call {
     my ($env) = @_;
     my $ssu = $env->{"ss.request"}{uri};
     return [400, "SS request URI not specified"] unless $ssu;
+    return [400, "Sub not specified"] unless $ssu->sub;
 
     $ssu->call(%{$env->{"ss.request"}{args}});
 }
