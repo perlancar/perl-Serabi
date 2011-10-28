@@ -169,7 +169,8 @@ sub serve {
                     $log->tracef("SS request: %s", $ssreq);
                     my $command = $ssreq->{command};
                     my $uri     = $ssreq->{uri};
-                    if ($uri->proto eq 'pm' && $command =~ /^(call|spec)$/) {
+                    if ($uri && $uri->proto eq 'pm' &&
+                            $command =~ /^(call|spec)$/) {
                         my $mod = $uri->module;
                         no strict 'refs';
                         my $spec = \%{"$mod\::SPEC"};
