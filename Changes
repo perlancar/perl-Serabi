@@ -1,5 +1,10 @@
 Revision history for Sub-Spec-HTTP-Server
 
+0.12     2012-01-20
+
+         No functional changes. Mark deprecation.
+
+
 0.11     2011-10-28
 
          No functional changes. Better error messages when module and/or sub is

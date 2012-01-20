@@ -73,6 +73,13 @@ List available modules:
 
 =head1 DESCRIPTION
 
+B<NOTICE>: This module and the L<Sub::Spec> standard is deprecated as of Jan
+2012. L<Rinci> is the new specification to replace Sub::Spec, it is about 95%
+compatible with Sub::Spec, but corrects a few issues and is more generic.
+C<Perinci::*> is the Perl implementation for Rinci and many of its modules can
+handle existing Sub::Spec sub specs. L<Serabi> (L<Perinci::HTTP::Server>)
+supersedes this module.
+
 Sub::Spec::HTTP::I<Server> is a PSGI I<application> to serve remote (HTTP)
 subroutine call requests. It is suitable for serving remote API. (Sorry for the
 slight confusion between "server" and "application"; this module was not
