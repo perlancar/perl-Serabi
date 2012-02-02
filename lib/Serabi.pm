@@ -1,25 +1,45 @@
-=begin comment
+package Serabi;
 
-This is a (PSGI middleware? PSGI app?) to create REST-style service while still
-utilizing Rinci/Riap.
+use 5.010;
+use strict;
+use warnings;
 
-Alternative to Riap::HTTP / Perinci::Access::HTTP::Server (or use some parts of
-Perinci::Access::HTTP::Server or its Plack::Middleware::Perinci::)?
+# VERSION
 
-You define resources and map verbs to Riap functions, e.g.:
+1;
+# ABSTRACT: Create REST-style web service with Riap backend
 
- resources => {
-     "/user" => {
-         # /user/123 automatically maps to?
-         id_parameter => 'id',
-         verbs => [
-             "GET \d+" => {riap => "/My/App/User/get_users"},
-             "GET"     => {riap => "/My/App/User/list_users"},
-         ]
-     },
- }
+=head1 STATUS
 
-(or create some DSL for this, examples abound in various library like
-django-tastypie, etc). search also for RESTful rails, etc.
+Nothing is implemented yet.
 
-=end comment
+
+=head1 DESCRIPTION
+
+This will be a set of PSGI middlewares (Plack::Middleware::Serabi::*) to help
+you build REST-style web service with L<Riap> backend. This is meant as an
+alternative (or companion) to L<Periuk> (a.k.a.
+L<Perinci::Access::HTTP::Server>).
+
+I currently have no plan implementing this, as I find L<Rinci>/Riap easy to
+implement and sufficient for a rich and usable API service. But this library is
+mostly only about mapping HTTP requests (URI's, methods, headers) as REST
+resources and verbs, and then mapping them to Riap requests.
+
+
+=head1 FAQ
+
+=head2 Serabi?
+
+Serabi is a delicious traditional food from where I live (Java, Indonesia). I
+picked the name after a Python project, B<jango-tastypie>. Aside from the name,
+both projects are unrelated.
+
+
+=head1 SEE ALSO
+
+L<Rinci>, L<Riap>, L<Perinci>, L<Periuk> (Gosh, have I "gone Ruby"?)
+
+django-tastypie, https://github.com/toastdriven/django-tastypie
+
+=cut
