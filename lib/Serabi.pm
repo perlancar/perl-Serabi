@@ -18,8 +18,7 @@ Nothing is implemented yet.
 
 This will be a set of PSGI middlewares (Plack::Middleware::Serabi::*) to help
 you build REST-style web service with L<Riap> backend. This is meant as an
-alternative (or companion) to L<Periuk> (a.k.a.
-L<Perinci::Access::HTTP::Server>).
+alternative (or companion) to L<Perinci::Access::HTTP::Server>.
 
 I currently have no plan implementing this, as I find L<Rinci>/Riap easy to
 implement and sufficient for a rich and usable API service. But this library is
@@ -38,7 +37,7 @@ both projects are unrelated.
 
 =head1 SEE ALSO
 
-L<Rinci>, L<Riap>, L<Perinci>, L<Periuk> (Gosh, have I "gone Ruby"?)
+L<Rinci>, L<Riap>, L<Perinci> (Gosh, have I "gone Ruby"?)
 
 django-tastypie, https://github.com/toastdriven/django-tastypie
 
